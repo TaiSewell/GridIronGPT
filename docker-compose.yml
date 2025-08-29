@@ -1,0 +1,71 @@
+services:
+
+  frontend:
+    build: ./frontend
+    container_name: ff-web
+    ports:
+      - "${PORT_WEB:-5173}:${PORT_WEB:-5173}"
+    environment:
+      # Your frontend can read this with import.meta.env.VITE_API_URL
+      - VITE_API_URL=http://localhost:${PORT_API:-8080}
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/src
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5173"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      
+  api:
+    build: ./api
+    container_name: ff-api
+    ports:
+      - "${PORT_API:-8080}:${PORT_API:-8080}"
+    environment:
+      - PORT=8080
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+      - DYNAMO_ENDPOINT=${DYNAMO_ENDPOINT:-http://dynamodb:8000}
+      # Optional integration points you can wire later:
+      - MCP_BASE_URL=http://mcp:9000
+    depends_on:
+      - mcp
+      - dynamodb
+    volumes:
+      - ./api:/src
+      - /api/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  mcp:
+    build: ./mcp
+    container_name: ff-mcp
+    ports:
+      - "${PORT_MCP:-9000}:${PORT_MCP:-9000}"
+    environment:
+      - PORT=9000
+    volumes:
+      - ./mcp:/src
+      - /mcp/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  dynamodb:
+    image: amazon/dynamodb-local:2.0.0
+    container_name: ff-dynamodb
+    ports:
+      - "8000:8000"
+    command: -jar DynamoDBLocal.jar -sharedDb -inMemory
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/shell/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10

@@ -1,7 +1,7 @@
 # 🏈 GridironGPT – Fantasy Football Chatbot (MVP)
 
-An AI-inspired fantasy football assistant that helps analyze your roster and suggest **start/sit decisions**.  
-This MVP version runs fully locally with **seeded data**, so you can demo the workflow without needing live API keys.
+### An AI-inspired fantasy football assistant that helps analyze your roster and suggest **start/sit decisions**.  
+### This MVP version runs fully locally with **seeded data**, so you can demo the workflow without needing live API keys.
 
 ---
 
