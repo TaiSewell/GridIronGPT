@@ -39,18 +39,21 @@ Built with **React**, **FastAPI**, **Python**, and **SQLite**, the app processes
 ```bash
 git clone https://github.com/taisewell/GridironGPT.git
 cd GridironGPT
-
+```
+```bash
 2️⃣ Backend Setup
 cd backend
 pip install -r requirements.txt
 uvicorn app:app --reload
-
+```
+```bash
 3️⃣ Frontend Setup
 cd frontend
 npm install
 npm run dev
+```
 
-🔑 Environment Variables
+### 🔑 Environment Variables
 Create a .env file in your backend directory with:
 OPENAI_API_KEY=your_api_key_here
 This key connects to the OpenAI Mini model, which formats backend data into conversational responses.
