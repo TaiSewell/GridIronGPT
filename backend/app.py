@@ -1,3 +1,8 @@
+"""
+    Developer: Tai Sewell
+    File: app.py
+"""
+
 from fastapi import FastAPI
 
 app = FastAPI()
