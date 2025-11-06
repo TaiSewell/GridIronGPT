@@ -54,10 +54,11 @@ npm run dev
 ```
 
 ### 🔑 Environment Variables
-Create a .env file in your backend directory with:
-OPENAI_API_KEY=your_api_key_here
-This key connects to the OpenAI Mini model, which formats backend data into conversational responses.
-
+<p>
+    Create a .env file in your backend directory with: <br>
+    OPENAI_API_KEY=your_api_key_here <br>
+    This key connects to the OpenAI Mini model, which formats backend data into conversational responses.
+</p>
 💡 Roadmap
  Phase 0 – Setup
 
