@@ -11,7 +11,6 @@ import csv
 from pathlib import Path
 
 # ---- Paths ----
-# backend/ (this file) -> ../data/playersdata.csv
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "playersdata.csv"
 
 def ensure_db_initialized():
@@ -27,7 +26,6 @@ def load_csv_to_db(csv_path: Path):
     conn = get_connection()
     cur = conn.cursor()
 
-    # (Optional) create unique index if you want to prevent duplicates
     cur.execute("""
     CREATE UNIQUE INDEX IF NOT EXISTS ux_player_week ON players(player_name, week);
     """)
@@ -42,18 +40,18 @@ def load_csv_to_db(csv_path: Path):
                 skipped += 1
                 continue
 
-            # Trim & parse; use None for blanks to avoid CHECK failures
+            # Trim & parse;
             row = [c.strip() for c in row]
             values = (
-                row[0],              # player_name
-                row[1],              # team
-                row[2],              # pos
-                int(row[3]) if row[3] else None,          # week (must be 1..18)
-                float(row[4]) if row[4] else None,        # proj_points
-                int(row[5]) if row[5] else None,          # opp_def_rank (1..32)
-                int(row[6]) if row[6] else None,          # ros_value (1..404)
-                float(row[7]) if row[7] else None,        # rostered_pct (0..100)
-                row[8] if row[8] else None                # status
+                row[0],             
+                row[1],             
+                row[2],              
+                int(row[3]) if row[3] else None,         
+                float(row[4]) if row[4] else None,        
+                int(row[5]) if row[5] else None,          
+                int(row[6]) if row[6] else None,          
+                float(row[7]) if row[7] else None,        
+                row[8] if row[8] else None               
             )
 
             try:

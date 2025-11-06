@@ -7,7 +7,7 @@
 import sqlite3
 from pathlib import Path
 
-# Single source of truth for the DB path
+# DB Path Origin
 DB_PATH = Path(__file__).resolve().parent / "GridIronGPT.db"
 
 def get_connection():
