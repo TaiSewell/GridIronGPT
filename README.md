@@ -1,5 +1,5 @@
 # 🏈 GridironGPT — AI Fantasy Football Assistant
-<h2>In Development</h2>
+<h2>Status: In Development</h2>
 
 **GridironGPT** is a conversational fantasy football assistant that blends real statistical analysis with AI-powered formatting.  
 Built with **React**, **FastAPI**, **Python**, and **SQLite**, the app processes and analyzes player data on the backend while the **OpenAI Mini model** delivers responses that are easy to read, insightful, and conversational.
@@ -101,3 +101,4 @@ This project is licensed under the MIT License.
 Developed by Tai Sewell
 
 “Where stats meet strategy.”
+
