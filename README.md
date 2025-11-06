@@ -29,21 +29,7 @@ Built with **React**, **FastAPI**, **Python**, and **SQLite**, the app processes
 
 ## 🗂️ Project Structure
 
-GridironGPT/
-├── frontend/ # React client (chat interface)
-│ ├── src/
-│ └── package.json
-├── backend/
-│ ├── app.py # FastAPI routes & AI integration
-│ ├── db.py # Database connection & queries
-│ ├── load_csv.py # Loads player CSV data
-│ ├── schema.sql # SQLite schema definition
-│ └── logic/ # Core fantasy analysis logic
-└── data/
-└── playersdata.csv # Fantasy player dataset
-
-yaml
-Copy code
+![Project Structure](/assets/File%20Structure%20GridIronGPT.png)
 
 ---
 
@@ -53,15 +39,13 @@ Copy code
 ```bash
 git clone https://github.com/taisewell/GridironGPT.git
 cd GridironGPT
+
 2️⃣ Backend Setup
-bash
-Copy code
 cd backend
 pip install -r requirements.txt
 uvicorn app:app --reload
+
 3️⃣ Frontend Setup
-bash
-Copy code
 cd frontend
 npm install
 npm run dev
