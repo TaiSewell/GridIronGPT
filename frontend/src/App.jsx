@@ -1,32 +1,40 @@
-import {useState} from "react";
+import { useEffect, useState } from 'react'
 
-export default function App(){
-  const [messages,setMessages]=useState([]);
-  const [input,setInput]=useState("");
+const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000');
 
-  async function ping(){
-    const r = await fetch("http://localhost:8000/health");
-    const data = await r.json();
-    setMessages(m=>[...m,{role:"assistant",content:JSON.stringify(data)}]);
-  }
+export default function App() {
+  const [health, setHealth] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/health`)
+      .then(r => r.json())
+      .then(setHealth)
+      .catch(err => setError(String(err)))
+  }, [])
 
   return (
-    <div className="mx-auto max-w-xl p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">Fantasy Football AI Chat</h1>
-      <div className="border rounded p-3 h-[50vh] overflow-y-auto space-y-2">
-        {messages.map((m,i)=>(
-          <div key={i} className={m.role==="user"?"text-right":""}>
-            <span className={`inline-block px-3 py-2 rounded ${m.role==="user"?"bg-gray-200":"bg-gray-100"}`}>
-              {m.content}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <input className="flex-1 border rounded px-3 py-2" value={input} onChange={e=>setInput(e.target.value)} placeholder="Type anything…" />
-        <button className="px-4 py-2 rounded bg-black text-white" onClick={()=>{setMessages(m=>[...m,{role:"user",content:input}]);setInput("");}}>Send</button>
-        <button className="px-3 py-2 rounded border" onClick={ping}>Ping API</button>
-      </div>
+    <div className="min-h-screen p-6">
+      <header className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold">GridironGPT</h1>
+        <p className="text-sm text-gray-600">Phase 0 – Bootstrap</p>
+      </header>
+
+      <main className="max-w-3xl mx-auto mt-6">
+        <div className="rounded-xl border p-4 bg-white shadow-sm">
+          <h2 className="font-semibold mb-2">Backend Health</h2>
+          {!health && !error && <p>Checking...</p>}
+          {error && <p className="text-red-600">Error: {error}</p>}
+          {health && (
+            <pre className="text-sm bg-gray-50 p-3 rounded-lg overflow-auto">
+{JSON.stringify(health, null, 2)}
+            </pre>
+          )}
+          <p className="text-xs text-gray-500 mt-2">
+            API Base: <code>{API_BASE}</code>
+          </p>
+        </div>
+      </main>
     </div>
-  );
+  )
 }

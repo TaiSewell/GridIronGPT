@@ -1,3 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --brand: #00ff7f; /* wild green, tweak later */
+}

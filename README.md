@@ -1,29 +1,73 @@
-# 🏈 GridironGPT — AI Fantasy Football Assistant
-<h2>Status: In Development</h2>
+# GridironGPT — AI Fantasy Football Assistant
 
-**GridironGPT** is a conversational fantasy football assistant that blends real statistical analysis with AI-powered formatting.  
-Built with **React**, **FastAPI**, **Python**, and **SQLite**, the app processes and analyzes player data on the backend while the **OpenAI Mini model** delivers responses that are easy to read, insightful, and conversational.
+**Status:** In Development
 
----
+**GridironGPT** is an AI-powered fantasy football assistant that combines real **statistical data**, **Sleeper API league syncing**, and **OpenAI** formatting to generate clear, conversational fantasy insights.
 
-## 🚀 Features
+The backend fetches league, roster, player, and matchup data from the Sleeper API, caches it locally in **SQLite**, and exposes it through a lightweight **FastAPI** service.
+The frontend (React + Tailwind) will provide an interactive chat interface powered by the OpenAI Mini Model for natural, easy-to-read analysis.
 
-- 🧮 **Backend-Driven Logic** – All projections, matchup evaluations, and player rankings are handled by the FastAPI backend.  
-- 🤖 **AI-Powered Formatting** – The OpenAI Mini model reformats backend output into clear, chat-style advice.  
-- 💬 **Smart Chat Interface** – Users can ask questions like “Who are the best RB matchups this week?” or “Should I start this QB?”  
-- 🗂️ **SQLite Data Layer** – Stores and indexes player stats, projections, and roster information.  
-- ⚡ **Modern Frontend** – Built with React, Vite, and Tailwind CSS for fast, responsive performance.
+## 🚀 Core Features (Current & In-Progress)
+### ✔️ Local Sleeper Data Caching (Phase 1)
+
+Pulls league, roster, matchup, and player data from the Sleeper API
+
+Stores all data locally in SQLite using a clean schema
+
+Uses a meta table for:
+
+active league tracking
+
+last sync timestamps (TTLs)
+
+Supports fast reads and offline-friendly performance
+
+### ✔️ Flexible DB Layer
+
+Custom db.py built with:
+
+WAL mode
+
+foreign key enforcement
+
+reusable query helpers (fetch_all, fetch_one, execute, executemany)
+
+metadata persistence
+
+Prepped for future projections + analytics
+
+### 🔜 AI Layer (Phase 3)
+
+Backend computes raw insights
+
+OpenAI Mini model reformats results into:
+
+start/sit advice
+
+matchup breakdowns
+
+weekly ranking explanations
+
+### 🔜 Smart Chat UI (Phase 4)
+
+React UI optimized for:
+
+quick queries
+
+matchup lookups
+
+weekly roster decisions
 
 ---
 
 ## 🧠 Tech Stack
-
-| Layer | Technology | Description |
-|-------|-------------|-------------|
-| **Frontend** | React + Vite + Tailwind CSS | Interactive chat UI |
-| **Backend** | FastAPI (Python) | Handles all logic, routes, and AI requests |
-| **Database** | SQLite | Stores fantasy player data |
-| **AI Integration** | OpenAI Mini Model | Formats backend results conversationally |
+| **Layer**      | **Technology**            | **Purpose**                                      |
+|----------------|---------------------------|--------------------------------------------------|
+| Frontend       | React + Vite + Tailwind   | Chat interface + user input                      |
+| Backend        | FastAPI (Python)          | Syncs data, exposes endpoints, AI formatting     |
+| Database       | SQLite                    | Local cache of Sleeper API data                  |
+| External API   | Sleeper API               | Provides league, roster, matchup & player info   |
+| AI             | OpenAI Mini Model         | Conversational formatting of backend output      |
 
 ---
 
@@ -40,53 +84,91 @@ Built with **React**, **FastAPI**, **Python**, and **SQLite**, the app processes
 git clone https://github.com/taisewell/GridironGPT.git
 cd GridironGPT
 ```
+### 2️⃣ Backend Setup (FastAPI)
 ```bash
-2️⃣ Backend Setup
 cd backend
 pip install -r requirements.txt
-uvicorn app:app --reload
+uvicorn app.main:app --reload
 ```
+### 3️⃣ Frontend Setup (React)
 ```bash
-3️⃣ Frontend Setup
 cd frontend
 npm install
 npm run dev
 ```
 
 ### 🔑 Environment Variables
-<p>
-    Create a .env file in your backend directory with: <br>
-    OPENAI_API_KEY=your_api_key_here <br>
-    This key connects to the OpenAI Mini model, which formats backend data into conversational responses.
-</p>
-💡 Roadmap
- Phase 0 – Setup
+Create a .env file inside backend/:
+```bash
+OPENAI_API_KEY=your_api_key_here
+DB_PATH=./data/gridiron.db
+SLEEPER_LEAGUE_ID=your_default_league_id   # optional
+```
 
- Phase 1 – Data Layer (schema, load_csv, db.py)
+## 🗺️ Roadmap
+Phase 0 – Setup ✔️
+Repo initialized
 
- Phase 2 – Backend Logic & Projections
+Project structure created
 
- Phase 3 – OpenAI Mini Model Integration (formatting layer)
+Requirements + environment configured
 
- Phase 4 – React Chat Interface
+Phase 1 – Data Layer (Current)
+✔️ SQLite schema
 
- Phase 5 – Deployment
+✔️ db.py data access layer
 
- Phase 6 – UI Polish & Documentation
+⏳ Sleeper client
 
-🧩 Future Enhancements
-Add user authentication and saved team data
+⏳ Sync pipeline (players, rosters, matchups)
 
-Integrate live API data (injuries, projections, weather)
+Phase 2 – Backend Logic
+Compute matchup advantages
 
-Deploy to Vercel (frontend) + Render/AWS (backend)
+Weekly player ranking logic
 
-Expand AI model context for deeper analysis
+Start/Sit comparison processing
 
-📜 License
-This project is licensed under the MIT License.
+Phase 3 – AI Integration
+Format backend outputs using OpenAI Mini
+
+Efficient prompt generation
+
+Chat-style conversational formatting
+
+Phase 4 – React Chat Interface
+Chat panel
+
+Query input
+
+Response formatting
+
+Display synced roster + matchups
+
+Phase 5 – Deployment
+Vercel for frontend
+
+Render / AWS for backend
+
+Phase 6 – Polish
+UI design improvements
+
+Animations
+
+Documentation cleanup
+
+🔮 Future Enhancements
+User-selectable Sleeper league
+
+Multi-league caching
+
+Live injury & projection data
+
+Player comparison charts
+
+Weekly fantasy projections
+
+Performance metrics by roster slot
 
 Developed by Tai Sewell
-
 “Where stats meet strategy.”
-

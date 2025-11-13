@@ -1,6 +1,18 @@
+# node / python / env
+node_modules/
+dist/
 .env
-venv
+*.db
 __pycache__/
-*.pyc
-sqlite.db
-frontend\dist\
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints
+
+# frontend build
+frontend/.vite
+frontend/.next
+frontend/build
+
+# docker
+*.log
