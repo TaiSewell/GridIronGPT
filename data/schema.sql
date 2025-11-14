@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS leagues (
     league_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     season INTEGER NOT NULL,
+    status TEXT NOT NULL,
     scoring_settings_json TEXT NOT NULL,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
