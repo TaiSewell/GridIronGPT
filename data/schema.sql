@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS players (
   player_id TEXT PRIMARY KEY,
   player_name TEXT NOT NULL,
   team TEXT,
-  pos TEXT,
+  position TEXT,
   status TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_players_name ON players(player_name);

@@ -14,23 +14,34 @@ import typing as t
 import httpx
 import json
 
-#SLEEPER_BASE = os.getenv("SLEEPER_BASE", "https://api.sleeper.app/v1")
 
-class SleeperClient:
-    def __init__(self, base_url = os.getenv("SLEEPER_BASE", "https://api.sleeper.app/v1")):
-        self.base_url = base_url
+class DataClient:
+    def __init__(self, sleeper_base_url = os.getenv("SLEEPER_BASE", "https://api.sleeper.app/v1"), sportsdata_base_url = os.getenv("SPORTS_DATA_BASE", "https://api.sportsdata.io/v3/nfl/projections/json")):
+        self.sleeper_base_url = sleeper_base_url
+        self.sportsdata_base_url = sportsdata_base_url
 
-    def get_json(self, path: str) -> t.Any:
+    def sleeper_get_json(self, path: str) -> t.Any:
         """
         Build the full URL, send a GET request using httpx,
         and return the parsed JSON.
         """
-        url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
+        url = f"{self.sleeper_base_url.rstrip('/')}/{path.lstrip('/')}"
         
         try:
             response = httpx.get(url, timeout=10.0)
             response.raise_for_status()  # raises HTTPError if 4xx or 5xx
             return response.json()       # no need to decode manually
+        except httpx.HTTPError as exc:
+            raise RuntimeError(f"Request failed: {exc}") from exc
+    
+    def sportsdata_get_json(self, path: str) -> t.Any:
+
+        url = f"({self.sportsdata_base_url.rstrip('/')}/{path.lstrip('/')})"
+
+        try:
+            response = httpx.get(url, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
         except httpx.HTTPError as exc:
             raise RuntimeError(f"Request failed: {exc}") from exc
 
@@ -71,5 +82,46 @@ class SleeperClient:
                 "Retrieved": False,
                 "Error": str(err)
             }
+    
+    def get_players(self):
+        try:
+            data = self.get_json(f"players/nfl")
+            return {
+                "ok": True,
+                "player_id": data.get("player_id"),
+                "player_name": data.get("player_name"),
+                "team": data.get("team"),
+                "position": data.get("pos"),
+                "status": data.get("status")
+            }
+        except Exception as e:
+            return {
+                "Retrieved": False,
+                "Error": str(e)
+            }
+    
+    def get_weekly_player_stats(self, year: int, week: int):
+        try:
+            season = f"{year}REG"
+            key = os.getenv("SPORTS_DATA_KEY")
+            headers = {
+                "Ocp-Apim-Subscription-Key": key
+            }
 
-        
+            data = self.sportsdata_get_json(
+                f"/IdpPlayerGameProjectionStatsByWeek/{season}/{week}",
+                headers=headers
+            )
+
+            return {
+                "Retrieved": True,
+                "player_id": data.get("player_id"),
+                "season": data.get("season"),
+                "week": data.get("week"),
+
+            }
+
+        except Exception as e:
+            return {
+
+            }
