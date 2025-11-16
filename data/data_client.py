@@ -16,112 +16,84 @@ import json
 
 
 class DataClient:
-    def __init__(self, sleeper_base_url = os.getenv("SLEEPER_BASE", "https://api.sleeper.app/v1"), sportsdata_base_url = os.getenv("SPORTS_DATA_BASE", "https://api.sportsdata.io/v3/nfl/projections/json")):
-        self.sleeper_base_url = sleeper_base_url
-        self.sportsdata_base_url = sportsdata_base_url
+    """
+    Minimal raw fetcher for external APIs.
+    - Sleeper: public, no auth.
+    - SportsDataIO: requires Ocp-Apim-Subscription-Key.
+    """
 
-    def sleeper_get_json(self, path: str) -> t.Any:
-        """
-        Build the full URL, send a GET request using httpx,
-        and return the parsed JSON.
-        """
-        url = f"{self.sleeper_base_url.rstrip('/')}/{path.lstrip('/')}"
-        
+    def __init__(self, sleeper_base_url: str | None = None, sportsdata_base_url: str | None = None, sportsdata_key: str | None = None, timeout: float = 10.0) -> None:
+        self.sleeper_base_url = (sleeper_base_url or os.getenv("SLEEPER_BASE") or "https://api.sleeper.app/v1").rstrip("/")
+        self.sportsdata_base_url = (sportsdata_base_url or os.getenv("SPORTS_DATA_BASE") or "https://api.sportsdata.io/v3/nfl").rstrip("/")
+        self.sportsdata_key = sportsdata_key or os.getenv("SPORTS_DATA_KEY") or ""
+        self._client = httpx.Client(timeout=timeout)
+
+    # -----------------------------
+    # Low-level HTTP helpers
+    # -----------------------------
+    def _get(self, url: str, headers: dict[str, str] | None = None, params: dict[str, t.Any] | None = None) -> json:
         try:
-            response = httpx.get(url, timeout=10.0)
-            response.raise_for_status()  # raises HTTPError if 4xx or 5xx
-            return response.json()       # no need to decode manually
+            resp = self._client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            return resp.json()
         except httpx.HTTPError as exc:
-            raise RuntimeError(f"Request failed: {exc}") from exc
-    
-    def sportsdata_get_json(self, path: str) -> t.Any:
+            raise RuntimeError(f"GET {url} failed: {exc}") from exc
 
-        url = f"({self.sportsdata_base_url.rstrip('/')}/{path.lstrip('/')})"
-
-        try:
-            response = httpx.get(url, timeout=10.0)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as exc:
-            raise RuntimeError(f"Request failed: {exc}") from exc
-
-
-    def get_league(self, league_id: str) -> dict:
+    def sleeper_get_json(self, path: str, params: dict[str, t.Any] | None = None) -> json:
         """
-        Try to fetch league metadata. If successful, return league
-        name + season + status. If failed, return an error message.
+        Raw GET to Sleeper. `path` may be '/league/123' or 'league/123'.
         """
-        try:
-            data = self.get_json(f"/league/{league_id}")
-            return {
-                "ok": True,
-                "name": data.get("name"),
-                "season": data.get("season"),
-                "status": data.get("status"),
-                "scoring_settings": data.get("scoring_settings")
-            }
-        except Exception as e:
-            return {
-                "ok": False,
-                "error": str(e),
-            }
+        url = f"{self.sleeper_base_url}/{path.lstrip('/')}"
+        return self._get(url, params=params)
 
-    def get_rosters(self, league_id):
-        try:
-            data = self.get_json(f"/league/{league_id}/rosters")
-            return {
-                "ok": True,
-                "league_id": data.get("league_id"),
-                "roster_id": data.get("roster_id"),
-                "owner_id": data.get("owner_id"),
-                "starters_json": data.get("starters_json"),
-                "bench_json": data.get("bench_json")
-            }
-        except Exception as err:
-            return {
-                "Retrieved": False,
-                "Error": str(err)
-            }
+    def sportsdata_get_json(self, path: str, params: dict[str, t.Any] | None = None) -> json:
+        """
+        Raw GET to SportsDataIO. `path` may be absolute ('https://...') or relative ('/projections/json/...').
+        Adds the required Ocp-Apim-Subscription-Key header.
+        """
+        if path.startswith("http://") or path.startswith("https://"):
+            url = path
+        else:
+            url = f"{self.sportsdata_base_url}/{path.lstrip('/')}"
+            headers = {"Ocp-Apim-Subscription-Key": self.sportsdata_key}
+        return self._get(url, headers=headers, params=params)
     
-    def get_players(self):
-        try:
-            data = self.get_json(f"players/nfl")
-            return {
-                "ok": True,
-                "player_id": data.get("player_id"),
-                "player_name": data.get("player_name"),
-                "team": data.get("team"),
-                "position": data.get("pos"),
-                "status": data.get("status")
-            }
-        except Exception as e:
-            return {
-                "Retrieved": False,
-                "Error": str(e)
-            }
+    # -----------------------------
+    # Sleeper Endpoints (raw)
+    # -----------------------------
+    def get_league(self, league_id: str) -> json:
+        return self.sleeper_get_json(f"/league/{league_id}")
     
-    def get_weekly_player_stats(self, year: int, week: int):
-        try:
-            season = f"{year}REG"
-            key = os.getenv("SPORTS_DATA_KEY")
-            headers = {
-                "Ocp-Apim-Subscription-Key": key
-            }
+    def get_users(self, league_id: str) -> json:
+        return self.sleeper_get_json(f"/league/{league_id}/users")
+    
+    def get_rosters(self, league_id: str) -> json:
+        return self.sleeper_get_json(f"/league/{league_id}/rosters")
+    
+    def get_matchups(self, league_id: str, week: int) -> json:
+        return self.sleeper_get_json(f"/league/{league_id}/matchups/{week}")
+    
+    def get_all_players(self) -> json:
+        return self.sleeper_get_json("/players/nfl")
+    
+    # -----------------------------
+    # SportsDataIO endpoints (raw)
+    # -----------------------------
+    @staticmethod
+    def season_key(year: int) -> str:
+        return f"{year}REG"
+    
+    def get_weekly_offensive_projections(self, year: int, week: int) -> json:
+        season_key = self.season_key(year)
+        path = f"projections/json/PlayerGameProjectionStatsByWeek/{season_key}/{week}"
+        return self.sportsdata_get_json(path)
 
-            data = self.sportsdata_get_json(
-                f"/IdpPlayerGameProjectionStatsByWeek/{season}/{week}",
-                headers=headers
-            )
-
-            return {
-                "Retrieved": True,
-                "player_id": data.get("player_id"),
-                "season": data.get("season"),
-                "week": data.get("week"),
-
-            }
-
-        except Exception as e:
-            return {
-
-            }
+    def get_weekly_defensive_projections(self, year: int, week: int) -> json:
+        season_key = self.season_key(year)
+        path = f"projections/json/FantasyDefenseProjectionsByGame/{season_key}/{week}"
+        return self.sportsdata_get_json(path)
+    
+    def get_schedule(self, year: int, week: int) -> json:
+        season_key = self.season_key(year)
+        path = f"scores/json/ScoresByWeekFinal/{season_key}/{week}"
+        return self.sportsdata_get_json(path)
