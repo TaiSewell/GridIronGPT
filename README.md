@@ -4,7 +4,7 @@
 
 **GridironGPT** is an AI-powered fantasy football assistant that combines real **statistical data**, **Sleeper API league syncing**, and **OpenAI** formatting to generate clear, conversational fantasy insights.
 
-The backend fetches league, roster, player, and matchup data from the Sleeper API, caches it locally in **SQLite**, and exposes it through a lightweight **FastAPI** service.
+The backend fetches league, roster, player, and matchup data from the Sleeper API & SportsDataIO API, caches it locally in **SQLite**, and exposes it through a lightweight **FastAPI** service.
 The frontend (React + Tailwind) will provide an interactive chat interface powered by the OpenAI Mini Model for natural, easy-to-read analysis.
 
 ## 🚀 Core Features (Current & In-Progress)

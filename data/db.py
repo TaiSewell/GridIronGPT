@@ -155,3 +155,61 @@ def set_meta(key: str, value: str) -> None:
         """,
         (key, value),
     )
+
+def upsert_league(conn, league_id, name, season, status, scoring_setting_json) -> None:
+    """
+    Upsert the league information
+
+    It will insert row if league_id does not exist,
+    if the league_id exists it will update existing row.
+
+    Args:
+        conn = db connection 
+        league_id = sleeper league id
+        name = sleeper league name
+        season = year
+        status = Pre, Regular or post season
+        scoring_setting_json = Scoring settings this league uses
+    """
+    execute (
+        """
+        INSERT INTO leagues (league_id, name, season, status, scoring_settings_json)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(league_id) 
+        DO UPDATE SET 
+            name = excluded.name, 
+            season = excluded.season,
+            status = excluded.status
+            scoring_settings_json = excluded.scoring_settings_json,
+            updated_at = CURRENT_TIMESTAMP;
+        """
+    )
+
+def upsert_user(conn, user_id, display_name, avatar, team_name, metadata_json) -> None:
+    """
+    Upsert user into users table
+
+    It will insert new user row if the user_id does not exist,
+    otherwise it will update the existin user_id with the new information.
+
+    Args:
+        conn = db connection
+        user_id = sleeper user id
+        display_name = user display name
+        avatar = user avatar
+        team_name = users team name
+        metadata_json = users metadata
+    """
+    conn.execute (
+        """
+        INSERT INTO users (user_id, display_name, avatar, team_name, metadata_json)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(user_id)
+        DO UPDATE SET
+            display_name = excluded.display_name,
+            avatar = excluded.avatar,
+            team_name = excluded.team_name,
+            metadata_json = excluded.metadata_json,
+            updated_at = CURRENT_TIMESTAMP;
+        """
+    )
