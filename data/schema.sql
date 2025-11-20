@@ -138,12 +138,24 @@ CREATE TABLE IF NOT EXISTS dst_tiers (
   min_incl   INTEGER NOT NULL,                -- inclusive lower bound
   max_incl   INTEGER,                         -- inclusive upper (NULL=open-ended)
   points     REAL NOT NULL,                   -- tier bonus/penalty
-  PRIMARY KEY (league_id, metric, min_incl, COALESCE(max_incl, -1)),
+  PRIMARY KEY (league_id, metric, min_incl, max_incl),
+  FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE
+);
+
+/**************************************
+  Projection Adjustments (by position)
+**************************************/
+CREATE TABLE IF NOT EXISTS projection_adjustments (
+  league_id  TEXT NOT NULL,
+  position   TEXT NOT NULL,  -- QB, RB, WR, TE, K, DST
+  multiplier REAL NOT NULL DEFAULT 1.0,
+  bonus      REAL NOT NULL DEFAULT 0.0,
+  PRIMARY KEY (league_id, position),
   FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE
 );
 
 /******************************************
-  View: League-Accurate Projected Player Points
+  Baseline Player Weekly Projections (FP)
 ******************************************/
 CREATE VIEW IF NOT EXISTS v_player_weekly_proj_points AS
 SELECT
@@ -151,12 +163,47 @@ SELECT
   pws.week,
   pws.player_id,
   ss.league_id,
-  ROUND(SUM(pws.value * ss.weight), 2) AS projected_points
-FROM player_weekly_proj_stats pws
-JOIN scoring_settings ss
+  ROUND(SUM(pws.value * ss.weight), 2) AS baseline_points
+FROM player_weekly_proj_stats AS pws
+JOIN scoring_settings AS ss
   ON ss.stat_key = pws.stat_key
-GROUP BY pws.season, pws.week, pws.player_id, ss.league_id;
+GROUP BY
+  pws.season,
+  pws.week,
+  pws.player_id,
+  ss.league_id;
 
+/*********************************************
+  Final Player Weekly Projections (Adjusted)
+*********************************************/
+CREATE VIEW IF NOT EXISTS v_player_weekly_final_proj AS
+SELECT
+  v.season,
+  v.week,
+  v.player_id,
+  p.player_name,
+  p.position,
+  v.league_id,
+  pwm.opp_team,
+  pwm.is_home,
+  v.baseline_points,
+  COALESCE(adj.multiplier, 1.0) AS multiplier,
+  COALESCE(adj.bonus, 0.0)      AS bonus,
+  ROUND(
+    v.baseline_points * COALESCE(adj.multiplier, 1.0)
+    + COALESCE(adj.bonus, 0.0),
+    2
+  ) AS final_projection
+FROM v_player_weekly_proj_points AS v
+JOIN players AS p
+  ON p.player_id = v.player_id
+LEFT JOIN projection_adjustments AS adj
+  ON adj.league_id = v.league_id
+ AND adj.position  = p.position
+LEFT JOIN player_week_meta AS pwm
+  ON pwm.player_id = v.player_id
+ AND pwm.season    = v.season
+ AND pwm.week      = v.week;
 /******************************************
   View: Projected DST Points (linear + tiers)
 ******************************************/

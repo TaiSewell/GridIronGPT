@@ -93,7 +93,7 @@ def fetch_one(query: str, params: Iterable[any] = ()) -> List[Mapping[str, Any]]
         if row is not None:
             return dict(row)
         else:
-            None
+            return None
 
 def execute(query: str, params: Iterable[any] = ()) -> None:
     """
@@ -156,7 +156,7 @@ def set_meta(key: str, value: str) -> None:
         (key, value),
     )
 
-def upsert_league(conn, league_id, name, season, status, scoring_setting_json) -> None:
+def upsert_league(conn, league_id, name, season, status, scoring_settings_json) -> None:
     """
     Upsert the league information
 
@@ -171,7 +171,7 @@ def upsert_league(conn, league_id, name, season, status, scoring_setting_json) -
         status = Pre, Regular or post season
         scoring_setting_json = Scoring settings this league uses
     """
-    execute (
+    conn.execute (
         """
         INSERT INTO leagues (league_id, name, season, status, scoring_settings_json)
         VALUES (?, ?, ?, ?, ?)
@@ -179,10 +179,11 @@ def upsert_league(conn, league_id, name, season, status, scoring_setting_json) -
         DO UPDATE SET 
             name = excluded.name, 
             season = excluded.season,
-            status = excluded.status
+            status = excluded.status,
             scoring_settings_json = excluded.scoring_settings_json,
             updated_at = CURRENT_TIMESTAMP;
-        """
+        """,
+        (league_id, name, season, status, scoring_settings_json)
     )
 
 def upsert_user(conn, user_id, display_name, avatar, team_name, metadata_json) -> None:
@@ -211,5 +212,186 @@ def upsert_user(conn, user_id, display_name, avatar, team_name, metadata_json) -
             team_name = excluded.team_name,
             metadata_json = excluded.metadata_json,
             updated_at = CURRENT_TIMESTAMP;
-        """
+        """,
+        (user_id, display_name, avatar, team_name, metadata_json)
     )
+
+def upsert_roster(conn, league_id, roster_id, owner_id, starters_json, bench_json) -> None:
+        """
+        Insert or update a roster record in the database.
+
+        Args:
+            conn: Database connection object.
+            league_id (int): The ID of the league the roster belongs to.
+            roster_id (int): The unique identifier for the roster.
+            owner_id (int): The ID of the owner/user who owns this roster.
+            starters_json (str): JSON string containing the roster's starting players.
+            bench_json (str): JSON string containing the roster's bench players.
+        Returns:
+            None
+        """
+        conn.execute(
+            """
+            INSERT INTO rosters (league_id, roster_id, owner_id, starters_json, bench_json)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(roster_id)
+            DO UPDATE SET
+                league_id = excluded.league_id,
+                roster_id = excluded.roster_id,
+                owner_id = excluded.owner_id,
+                starters_json = excluded.starters_json,
+                bench_json = excluded.bench_json;
+            """,
+            (league_id, roster_id, owner_id, starters_json, bench_json)
+        )
+    
+def upsert_player(conn, player_id, player_name, team, position, status) -> None:
+        """
+        Insert or update a player record in the database.
+
+        Args:
+            conn: Database connection object.
+            player_id (int): Unique identifier for the player.
+            player_name (str): Name of the player.
+            team (str): Team abbreviation or identifier.
+            position (str): Player's position (e.g., 'QB', 'RB', 'WR').
+            status (str): Player's current status (e.g., 'active', 'injured', 'retired').
+
+        Returns:
+            None
+        """
+        conn.execute(
+            """
+            INSERT INTO players(player_id, player_name, team, position, status)
+            VALUES(?, ?, ?, ?, ?)
+            ON CONFLICT(player_id)
+            DO UPDATE SET
+            player_name = excluded.player_name,
+            team = excluded.team,
+            position = excluded.position,
+            status = excluded.status,
+            updated_at = CURRENT_TIMESTAMP;
+            """,
+            (player_id, player_name, team, position, status)
+        )
+
+def upsert_matchup(conn, league_id, season, week, roster_id, matchup_id, players_json, points) -> None:
+    """
+    Insert or update a matchup record in the database.
+
+    Args:
+        conn: Database connection object.
+        league_id (int): The ID of the league the matchup belongs to.
+        season (int): Season/year for the matchup.
+        week (int): The week number of the matchup.
+        roster_id (int): The roster ID involved in this matchup.
+        matchup_id (int): Unique identifier for the matchup.
+        players_json (str): JSON string listing players for this roster in the matchup.
+        points (float): Points scored by the roster in this matchup.
+
+    Returns:
+        None
+    """
+    conn.execute(
+        """
+        INSERT INTO matchups(league_id, season, week, roster_id, matchup_id, players_json, points)
+        VALUES(?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(matchup_id)
+        DO UPDATE SET
+            league_id = excluded.league_id,
+            season = excluded.season,
+            week = excluded.week,
+            roster_id = excluded.roster_id,
+            players_json = excluded.players_json,
+            points = excluded.points,
+            updated_at = CURRENT_TIMESTAMP;
+        """,
+        (league_id, season, week, roster_id, matchup_id, players_json, points)
+    )
+
+def upsert_player_week_meta(conn, player_id, season, week, opp_team, is_home) -> None:
+        """
+        Insert or update a player's weekly metadata record in the database.
+
+        Args:
+            conn: Database connection object.
+            player_id (int): Unique identifier for the player.
+            week (int): The week number for the metadata.
+            points (float): Points scored by the player in that week.
+            status (str): Player's status for that week (e.g., 'active', 'injured').
+
+        Returns:
+            None
+        """
+        conn.execute(
+            """
+            INSERT INTO player_week_meta(player_id, season, week, opp_team, is_home)
+            VALUES(?, ?, ?, ?, ?)
+            ON CONFLICT(player_id, season, week)
+            DO UPDATE SET
+                points = excluded.points,
+                status = excluded.status,
+                updated_at = CURRENT_TIMESTAMP;
+            """,
+            (player_id, season, week, opp_team, is_home)
+        )
+
+def upsert_scoring_settings(conn, league_id, stat_key, weight) -> None:
+        """
+        Insert or update scoring settings for a league.
+
+        Args:
+            conn: Database connection object.
+            league_id (int): The ID of the league.
+            stat_key (str): The key for the scoring statistic.
+            weight (float): The weight assigned to the scoring statistic.
+
+        Returns:
+            None
+        """
+        conn.execute(
+            """
+            INSERT INTO scoring_settings(league_id, stat_key, weight)
+            VALUES(?, ?, ?)
+            ON CONFLICT(league_id, stat_key)
+            DO UPDATE SET
+                weight = excluded.weight,
+                updated_at = CURRENT_TIMESTAMP;
+            """,
+            (league_id, stat_key, weight)
+        )
+
+def upsert_dst_tier(conn, league_id, metric, min_incl, max_incl, points) -> None:
+        """
+        Insert or update a DST tier record for a league.
+
+        Args:
+            conn: Database connection object.
+            league_id (int): The ID of the league.
+            metric (str): Metric name used for the tier (e.g., 'sacks', 'turnovers').
+            min_incl (float): Minimum inclusive threshold for the metric.
+            max_incl (float): Maximum inclusive threshold for the metric.
+            points (float): Points awarded for DSTs falling within the tier.
+
+        Returns:
+            None
+        """
+        conn.execute(
+            """
+            INSERT INTO dst_tier(league_id, metric, min_incl, max_incl, points)
+            VALUES(?, ?, ?, ?, ?)
+            ON CONFLICT(league_id, metric, min_incl, max_incl)
+            DO UPDATE SET
+                points = excluded.points,
+                updated_at = CURRENT_TIMESTAMP;
+            """,
+            (league_id, metric, min_incl, max_incl, points)
+        )
+
+    
+
+    
+    
+        
+        
+
