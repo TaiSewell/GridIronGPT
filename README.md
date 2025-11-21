@@ -72,53 +72,44 @@ weekly roster decisions
 ---
 
 ## 🗂️ Project Structure
-```graphql
-type Project {
-  GridironGPT {
-    backend {
-      app {
-        main: File
-        routers: Directory
-        services: Directory
-        models: Directory
-      }
-      Dockerfile: File
-      requirements: File
-    }
-
-    data {
-      schema: File
-      gridiron_db: File
-      data_client: File
-      db: File
-      sync: File
-      cache_manager: File
-    }
-
-    frontend {
-      public: Directory
-      src {
-        components: Directory
-        pages: Directory
-        App: File
-      }
-      Dockerfile: File
-      package_json: File
-      vite_config: File
-    }
-
-    tests {
-      db_tests: Directory
-    }
-
-    assets: Directory
-    env: File
-    env_example: File
-    docker_compose: File
-    gitignore: File
-    README: File
-  }
-}
+```
+GridironGPT/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── routers/
+│   │   ├── services/
+│   │   └── models/
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── data/
+│   ├── schema.py
+│   ├── gridiron_db.py
+│   ├── data_client.py
+│   ├── db.py
+│   ├── sync.py
+│   └── cache_manager.py
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── App.jsx
+│   ├── Dockerfile
+│   ├── package.json
+│   └── vite.config.js
+│
+├── tests/
+│   └── db_tests/
+│
+├── assets/
+├── .env
+├── .env.example
+├── docker-compose.yml
+├── .gitignore
+└── README.md
 ```
 ---
 
