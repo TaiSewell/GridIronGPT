@@ -72,8 +72,7 @@ jobs:
         - backend
         - frontend
 
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Placeholder deploy
-    run: echo "Deploy step not implemented yet – skipping."
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder deploy
+        run: echo "Deploy step not implemented yet – skipping."
