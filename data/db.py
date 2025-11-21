@@ -349,33 +349,6 @@ def upsert_player_weekly_proj_stat(conn, season: int, week: int, player_id: str,
         (season, week, player_id, stat_key, value, source),
     )
 
-def upsert_player_week_meta(conn, player_id, season, week, opp_team, is_home) -> None:
-        """
-        Insert or update a player's weekly metadata record in the database.
-
-        Args:
-            conn: Database connection object.
-            player_id (int): Unique identifier for the player.
-            week (int): The week number for the metadata.
-            points (float): Points scored by the player in that week.
-            status (str): Player's status for that week (e.g., 'active', 'injured').
-
-        Returns:
-            None
-        """
-        conn.execute(
-            """
-            INSERT INTO player_week_meta(player_id, season, week, opp_team, is_home)
-            VALUES(?, ?, ?, ?, ?)
-            ON CONFLICT(player_id, season, week)
-            DO UPDATE SET
-                points = excluded.points,
-                status = excluded.status,
-                updated_at = CURRENT_TIMESTAMP;
-            """,
-            (player_id, season, week, opp_team, is_home)
-        )
-
 def upsert_scoring_settings(conn, league_id, stat_key, weight) -> None:
         """
         Insert or update scoring settings for a league.
