@@ -72,9 +72,54 @@ weekly roster decisions
 ---
 
 ## 🗂️ Project Structure
+```graphql
+type Project {
+  GridironGPT {
+    backend {
+      app {
+        main: File
+        routers: Directory
+        services: Directory
+        models: Directory
+      }
+      Dockerfile: File
+      requirements: File
+    }
 
-![Project Structure](/assets/File%20Structure%20GridIronGPT.png)
+    data {
+      schema: File
+      gridiron_db: File
+      data_client: File
+      db: File
+      sync: File
+      cache_manager: File
+    }
 
+    frontend {
+      public: Directory
+      src {
+        components: Directory
+        pages: Directory
+        App: File
+      }
+      Dockerfile: File
+      package_json: File
+      vite_config: File
+    }
+
+    tests {
+      db_tests: Directory
+    }
+
+    assets: Directory
+    env: File
+    env_example: File
+    docker_compose: File
+    gitignore: File
+    README: File
+  }
+}
+```
 ---
 
 ## ⚙️ Installation

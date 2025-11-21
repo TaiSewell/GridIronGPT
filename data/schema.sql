@@ -61,12 +61,16 @@ CREATE TABLE IF NOT EXISTS players (
   player_name TEXT NOT NULL,
   team        TEXT,                           -- e.g., BUF
   position    TEXT,                           -- QB/RB/WR/TE/K/DST
-  status      TEXT
+  status      TEXT,
+  updated_at  TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_players_name ON players(player_name);
 
 /**********************************
    Player Week Meta (context only)
+   
+   * Each players league specific
+   summarized fantasy context
 **********************************/
 CREATE TABLE IF NOT EXISTS player_week_meta (
   player_id TEXT NOT NULL,
@@ -107,6 +111,7 @@ CREATE TABLE IF NOT EXISTS scoring_settings (
   league_id TEXT NOT NULL,
   stat_key  TEXT NOT NULL,                    -- pass_yd, pass_td, rec, int, dst_sack, ...
   weight    REAL NOT NULL,                    -- 0.04, 4, 1, -2, ...
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (league_id, stat_key),
   FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE
 );
@@ -114,6 +119,8 @@ CREATE INDEX IF NOT EXISTS idx_scoring_league ON scoring_settings(league_id, sta
 
 /****************************************
   Player Weekly Projections (EAV model)
+
+  * Each players raw stats for the week
 ****************************************/
 CREATE TABLE IF NOT EXISTS player_weekly_proj_stats (
   season       INTEGER NOT NULL,

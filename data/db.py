@@ -12,7 +12,7 @@
 import os
 import sqlite3
 from contextlib import contextmanager
-from typing import Any, Iterable, List, Mapping, Optional
+from typing import Any, Iterable, List, Dict, Optional, Mapping
 
 DB_PATH = os.getenv("DB_PATH", "./data/gridiron.db")
 
@@ -74,7 +74,7 @@ def fetch_all(query: str, params: Iterable[Any] = ()) -> List[Mapping[str, Any]]
         rows = cur.fetchall()
         return [dict(row) for row in rows]
     
-def fetch_one(query: str, params: Iterable[any] = ()) -> List[Mapping[str, Any]]:
+def fetch_one(query: str, params: Iterable[any] = ()) -> Optional[Dict[str, Any]]:
     """
     Run a SELECT query and return a single row (or None).
 
@@ -135,7 +135,7 @@ def get_meta(key: str) -> Optional[str]:
     if row is not None:
         return row["value"]
     else:
-        None
+        return None
 
 def set_meta(key: str, value: str) -> None:
     """
@@ -217,33 +217,38 @@ def upsert_user(conn, user_id, display_name, avatar, team_name, metadata_json) -
     )
 
 def upsert_roster(conn, league_id, roster_id, owner_id, starters_json, bench_json) -> None:
-        """
-        Insert or update a roster record in the database.
+    """
+    Insert or update a roster record in the database.
 
-        Args:
-            conn: Database connection object.
-            league_id (int): The ID of the league the roster belongs to.
-            roster_id (int): The unique identifier for the roster.
-            owner_id (int): The ID of the owner/user who owns this roster.
-            starters_json (str): JSON string containing the roster's starting players.
-            bench_json (str): JSON string containing the roster's bench players.
-        Returns:
-            None
-        """
-        conn.execute(
-            """
-            INSERT INTO rosters (league_id, roster_id, owner_id, starters_json, bench_json)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(roster_id)
-            DO UPDATE SET
-                league_id = excluded.league_id,
-                roster_id = excluded.roster_id,
-                owner_id = excluded.owner_id,
-                starters_json = excluded.starters_json,
-                bench_json = excluded.bench_json;
-            """,
-            (league_id, roster_id, owner_id, starters_json, bench_json)
+    Args:
+        conn: Database connection object.
+        league_id (int): The ID of the league the roster belongs to.
+        roster_id (int): The unique identifier for the roster.
+        owner_id (int): The ID of the owner/user who owns this roster.
+        starters_json (str): JSON string containing the roster's starting players.
+        bench_json (str): JSON string containing the roster's bench players.
+    Returns:
+        None
+    """
+    cur = conn.execute("SELECT 1 FROM leagues WHERE league_id = ?", (league_id,))
+    if cur.fetchone() is None:
+        raise RuntimeError(
+            f"Cannot upsert roster: league '{league_id}' does not exist. "
+            "Call upsert_league() (or sync_league) before inserting rosters."
         )
+
+    conn.execute(
+        """
+        INSERT INTO rosters (league_id, roster_id, owner_id, starters_json, bench_json)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(league_id, roster_id)
+        DO UPDATE SET
+            owner_id = excluded.owner_id,
+            starters_json = excluded.starters_json,
+            bench_json = excluded.bench_json;
+        """,
+        (league_id, roster_id, owner_id, starters_json, bench_json),
+    )
     
 def upsert_player(conn, player_id, player_name, team, position, status) -> None:
         """
@@ -275,6 +280,26 @@ def upsert_player(conn, player_id, player_name, team, position, status) -> None:
             (player_id, player_name, team, position, status)
         )
 
+def upsert_player_week_meta(conn, league_id, season, week, player_id, opp_team, is_home, projected_points, actual_points, status):
+    conn.execute(
+        """
+        INSERT INTO player_week_meta (
+            league_id, season, week, player_id,
+            opp_team, is_home, projected_points, actual_points, status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(league_id, season, week, player_id)
+        DO UPDATE SET
+            opp_team = excluded.opp_team,
+            is_home = excluded.is_home,
+            projected_points = excluded.projected_points,
+            actual_points = excluded.actual_points,
+            status = excluded.status,
+            updated_at = CURRENT_TIMESTAMP;
+        """,
+        (league_id, season, week, player_id, opp_team, is_home, projected_points, actual_points, status),
+    )
+
 def upsert_matchup(conn, league_id, season, week, roster_id, matchup_id, players_json, points) -> None:
     """
     Insert or update a matchup record in the database.
@@ -296,7 +321,7 @@ def upsert_matchup(conn, league_id, season, week, roster_id, matchup_id, players
         """
         INSERT INTO matchups(league_id, season, week, roster_id, matchup_id, players_json, points)
         VALUES(?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(matchup_id)
+        ON CONFLICT(league_id, season, week, roster_id)
         DO UPDATE SET
             league_id = excluded.league_id,
             season = excluded.season,
@@ -307,6 +332,21 @@ def upsert_matchup(conn, league_id, season, week, roster_id, matchup_id, players
             updated_at = CURRENT_TIMESTAMP;
         """,
         (league_id, season, week, roster_id, matchup_id, players_json, points)
+    )
+
+def upsert_player_weekly_proj_stat(conn, season: int, week: int, player_id: str, stat_key: str, value: float, source: str = "sportsdataio") -> None:
+    conn.execute(
+        """
+        INSERT INTO player_weekly_proj_stats (
+            season, week, player_id, stat_key, value, source
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(season, week, player_id, stat_key, source)
+        DO UPDATE SET
+            value = excluded.value,
+            generated_at = CURRENT_TIMESTAMP;
+        """,
+        (season, week, player_id, stat_key, value, source),
     )
 
 def upsert_player_week_meta(conn, player_id, season, week, opp_team, is_home) -> None:
