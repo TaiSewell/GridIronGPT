@@ -169,8 +169,7 @@ class CacheManager:
         last = self._get_last_synced(cache_key)
         if last is None:
             return True
-
-        # Use timezone-aware comparison
+        
         now = datetime.now(timezone.utc)
         return (now - last) > ttl
 
