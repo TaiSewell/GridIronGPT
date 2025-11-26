@@ -23,8 +23,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 # ----------------- Core sync helpers -----------------
-
-
 def _safe_get_player_name(p: dict[str, Any], player_id: str) -> str:
     return p.get("full_name") or p.get("name") or p.get("player_name") or str(player_id)
 
