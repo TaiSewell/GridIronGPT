@@ -11,7 +11,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import health
+from app.routers import health, advice, players, rosters
 from data.cache_manager import CacheManager
 from data.data_client import DataClient
 from backend.app.services.scoring_service import compute_weekly_projected_points
@@ -26,4 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include all routes from routers folder
 app.include_router(health.router)
+app.include_router(advice.router)
+app.include_router(players.router)
+app.include_router(rosters.router)
+
