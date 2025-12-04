@@ -10,7 +10,7 @@
 """
 
 from fastapi import APIRouter
-from app.config import settings, HealthInfo
+from backend.app.config import settings, HealthInfo
 
 router = APIRouter(tags=["health"])
 

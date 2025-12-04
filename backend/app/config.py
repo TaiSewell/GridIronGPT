@@ -32,4 +32,3 @@ settings = Settings()
 # simple DTO for health
 class HealthInfo(BaseModel):
     status: str
-    backend_port: int
