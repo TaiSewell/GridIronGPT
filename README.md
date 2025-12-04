@@ -207,4 +207,5 @@ Weekly fantasy projections
 Performance metrics by roster slot
 
 Developed by Tai Sewell
+
 “Where stats meet strategy.”
