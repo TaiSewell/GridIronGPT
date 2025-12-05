@@ -1,5 +1,6 @@
 """
 scoring_service.py
+Developer: Tai Sewell
 ------------------
 Business logic for computing projected fantasy points.
 
