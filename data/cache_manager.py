@@ -38,7 +38,7 @@ class CacheManager:
         self._ensure_meta_table()
 
     # ---------- Public API ----------
-    def _build_key(self, kind: str, week: int | None = None) -> str:
+    def build_key(self, kind: str, week: int | None = None) -> str:
         """
         Build a unique cache key for the meta table.
 
@@ -120,7 +120,7 @@ class CacheManager:
 
     # ───────── Meta / cache helpers using `meta` table ─────────
 
-    def _ensure_meta_table(self) -> None:
+    def ensure_meta_table(self) -> None:
         """
         Make sure the meta table exists.
 
@@ -139,7 +139,7 @@ class CacheManager:
             )
             conn.commit()
 
-    def _get_last_synced(self, cache_key: str) -> Optional[datetime]:
+    def get_last_synced(self, cache_key: str) -> Optional[datetime]:
         """
         Look up the last time this cache_key was updated in the meta table.
         Returns a datetime or None if there's no record.
@@ -165,7 +165,7 @@ class CacheManager:
         except ValueError:
             return None
 
-    def _is_stale(self, cache_key: str, ttl: timedelta) -> bool:
+    def is_stale(self, cache_key: str, ttl: timedelta) -> bool:
         last = self._get_last_synced(cache_key)
         if last is None:
             return True
@@ -173,7 +173,7 @@ class CacheManager:
         now = datetime.now(timezone.utc)
         return (now - last) > ttl
 
-    def _touch(self, cache_key: str, value: str | None = None) -> None:
+    def touch(self, cache_key: str, value: str | None = None) -> None:
         """
         Update the meta row for this cache_key to 'now'.
 
