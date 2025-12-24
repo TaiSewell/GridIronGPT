@@ -8,7 +8,8 @@
      cached locally in SQLite for performance and reliability.
 =============================================================
 """
-
+from dotenv import load_dotenv
+load_dotenv()
 import os
 import typing as t
 import httpx
@@ -31,11 +32,11 @@ class DataClient:
     # -----------------------------
     # Low-level HTTP helpers
     # -----------------------------
-    def _get(self, url: str, headers: dict[str, str] | None = None, params: dict[str, t.Any] | None = None) -> json:
+    def _get(self, url: str, headers=None, params=None):
         try:
-            resp = self._client.get(url, headers=headers, params=params)
-            resp.raise_for_status()
-            return resp.json()
+            r = httpx.get(url, headers=headers, params=params, timeout=20.0)
+            r.raise_for_status()
+            return r.json()
         except httpx.HTTPError as exc:
             raise RuntimeError(f"GET {url} failed: {exc}") from exc
 
@@ -47,17 +48,22 @@ class DataClient:
         return self._get(url, params=params)
 
     def sportsdata_get_json(self, path: str, params: dict[str, t.Any] | None = None) -> json:
-        """
-        Raw GET to SportsDataIO. `path` may be absolute ('https://...') or relative ('/projections/json/...').
-        Adds the required Ocp-Apim-Subscription-Key header.
-        """
-        if path.startswith("http://") or path.startswith("https://"):
+        if not self.sportsdata_key:
+            raise RuntimeError("SPORTS_DATA_KEY is missing/empty. Check .env loading.")
+
+        if path.startswith(("http://", "https://")):
             url = path
         else:
             url = f"{self.sportsdata_base_url}/{path.lstrip('/')}"
-            headers = {"Ocp-Apim-Subscription-Key": self.sportsdata_key}
+
+        # Always add key as query param
+        params = dict(params or {})
+        params["key"] = self.sportsdata_key
+
+        # Also send header (docs-supported)
+        headers = {"Ocp-Apim-Subscription-Key": self.sportsdata_key}
+
         return self._get(url, headers=headers, params=params)
-    
     # -----------------------------
     # Sleeper Endpoints (raw)
     # -----------------------------

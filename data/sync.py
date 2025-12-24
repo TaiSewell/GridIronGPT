@@ -9,14 +9,13 @@
 =============================================================
 """
 from __future__ import annotations
-
 import argparse
 import json
 import logging
 from typing import Any
-
 from data.data_client import DataClient
 from data.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_weekly_proj_stat
+import re
 
 LOG = logging.getLogger("gridiron.sync")
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +24,6 @@ logging.basicConfig(level=logging.INFO)
 # ----------------- Core sync helpers -----------------
 def _safe_get_player_name(p: dict[str, Any], player_id: str) -> str:
     return p.get("full_name") or p.get("name") or p.get("player_name") or str(player_id)
-
 
 def sync_players(client: DataClient) -> int:
     """

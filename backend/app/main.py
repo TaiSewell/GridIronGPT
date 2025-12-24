@@ -11,10 +11,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
-from backend.app.routers import health
-from data.cache_manager import CacheManager
-from data.data_client import DataClient
-from backend.app.services.scoring_service import compute_weekly_projected_points
+from backend.app.routers import health, players, rosters  # add these
 
 app = FastAPI(title="GridironGPT API", version="0.1.0")
 
@@ -26,5 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all routes from routers folder
+# Routers
 app.include_router(health.router)
+app.include_router(players.router)

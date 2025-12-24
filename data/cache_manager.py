@@ -35,7 +35,7 @@ class CacheManager:
         self.client = client or DataClient()
         self.default_ttl = timedelta(seconds=default_ttl_seconds)
         self.players_ttl = timedelta(seconds=player_ttl_seconds)
-        self._ensure_meta_table()
+        self.ensure_meta_table()
 
     # ---------- Public API ----------
     def build_key(self, kind: str, week: int | None = None) -> str:
@@ -61,7 +61,7 @@ class CacheManager:
         Ensure that league + users + rosters (+ optionally matchups) for a given week
         are fresh in the SQLite cache.
         """
-        cache_key = self._build_key("league_bundle", week)
+        cache_key = self.build_key("league_bundle", week)
 
         if not force_refresh and not self._is_stale(cache_key, self.default_ttl):
             return None
@@ -91,7 +91,7 @@ class CacheManager:
         """
         Make sure matchups for a specific week are cached.
         """
-        cache_key = self._build_key("matchups", week)
+        cache_key = self.build_key("matchups", week)
 
         if not force_refresh and not self._is_stale(cache_key, self.default_ttl):
             return
@@ -165,15 +165,15 @@ class CacheManager:
         except ValueError:
             return None
 
-    def is_stale(self, cache_key: str, ttl: timedelta) -> bool:
-        last = self._get_last_synced(cache_key)
+    def _is_stale(self, cache_key: str, ttl: timedelta) -> bool:
+        last = self.get_last_synced(cache_key)
         if last is None:
             return True
         
         now = datetime.now(timezone.utc)
         return (now - last) > ttl
 
-    def touch(self, cache_key: str, value: str | None = None) -> None:
+    def _touch(self, cache_key: str, value: str | None = None) -> None:
         """
         Update the meta row for this cache_key to 'now'.
 
