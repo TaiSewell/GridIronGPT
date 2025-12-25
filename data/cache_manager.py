@@ -118,6 +118,42 @@ class CacheManager:
 
         self._touch(cache_key)
 
+    def ensure_player_week_meta_cached(
+        self,
+        season: int,
+        week: int,
+        force_refresh: bool = False,
+    ) -> None:
+        """
+        Ensure opponent/home-away context is cached for a given season+week.
+        """
+        cache_key = f"player_week_meta:season:{season}:week:{week}"
+
+        if not force_refresh and not self._is_stale(cache_key, self.default_ttl):
+            return
+
+        sync.sync_player_week_meta(self.client, season, week)
+
+        self._touch(cache_key)
+
+    def ensure_weekly_actuals_cached(
+        self,
+        season: int,
+        week: int,
+        force_refresh: bool = False,
+    ) -> None:
+        """
+        Ensure FantasyPointsPPR actuals are cached for a given season+week.
+        """
+        cache_key = f"weekly_actuals:season:{season}:week:{week}"
+
+        if not force_refresh and not self._is_stale(cache_key, self.default_ttl):
+            return
+
+        sync.sync_weekly_actuals(self.client, season, week, league_id=self.league_id)
+
+        self._touch(cache_key)
+
     # ───────── Meta / cache helpers using `meta` table ─────────
 
     def ensure_meta_table(self) -> None:

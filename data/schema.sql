@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS player_week_meta (
   week      INTEGER NOT NULL CHECK (week BETWEEN 1 AND 18),
   opp_team  TEXT,                             -- e.g., JAX
   is_home   INTEGER,                          -- 1=home, 0=away, NULL=unknown
+  actual_points REAL,                         -- fantasy points (PPR) for played weeks
   PRIMARY KEY (player_id, season, week),
   FOREIGN KEY (player_id) REFERENCES players(player_id) ON DELETE CASCADE
 );

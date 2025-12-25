@@ -71,7 +71,13 @@ def search_player_projections_service(
     # 4) Ensure weekly projection stats exist
     cache.ensure_weekly_projections_cached(season, week)
 
-    # 5) Query the view
+    # 5) Ensure opponent/home-away context exists
+    cache.ensure_player_week_meta_cached(season, week)
+
+    # 6) Ensure weekly actuals exist (FantasyPointsPPR)
+    cache.ensure_weekly_actuals_cached(season, week)
+
+    # 7) Query the view
     with get_conn() as conn:
         return q_player.search_player_projections_by_name(
             conn=conn,
@@ -86,3 +92,49 @@ def list_players_service(limit: int = 200, offset: int = 0):
     cache.ensure_players_cached()
     with get_conn() as conn:
         return q_player.get_players(conn, limit, offset)
+
+
+def get_player_with_weekly_projection_service(
+    player_id: str,
+    week: int,
+    league_id: Optional[str] = None,
+    season: Optional[int] = None,
+):
+    league_id = league_id or settings.SLEEPER_LEAGUE_ID
+    if not league_id:
+        raise ValueError("league_id is required (or set SLEEPER_LEAGUE_ID).")
+
+    # IMPORTANT: cache must be per-league (don't use a global CacheManager here)
+    cache = CacheManager(league_id=league_id)
+
+    # 1) Ensure scoring exists (view depends on scoring_settings via v_player_weekly_proj_points)
+    cache.ensure_league_bundle_cached(week=None)
+
+    # 2) Ensure players exist (view joins players)
+    cache.ensure_players_cached()
+
+    # 3) Resolve season from DB if not provided
+    if season is None:
+        with get_conn() as conn:
+            season = q_league.get_league_season(conn, league_id)
+        if season is None:
+            raise ValueError(f"League not found in DB (cannot resolve season): {league_id}")
+
+    # 4) Ensure weekly projection stats exist
+    cache.ensure_weekly_projections_cached(season, week)
+
+    # 5) Ensure opponent/home-away context exists
+    cache.ensure_player_week_meta_cached(season, week)
+
+    # 6) Ensure weekly actuals exist (FantasyPointsPPR)
+    cache.ensure_weekly_actuals_cached(season, week)
+
+    # 7) Query the view
+    with get_conn() as conn:
+        return q_player.get_player_weekly_projection(
+            conn=conn,
+            league_id=league_id,
+            season=season,
+            week=week,
+            player_id=player_id,
+        )

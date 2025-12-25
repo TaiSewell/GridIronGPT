@@ -85,11 +85,16 @@ def search_player_projections_by_name(
             v.league_id,
             v.opp_team,
             v.is_home,
+            pwm.actual_points,
             v.baseline_points,
             v.multiplier,
             v.bonus,
             v.final_projection
         FROM v_player_weekly_final_proj AS v
+        LEFT JOIN player_week_meta AS pwm
+          ON pwm.player_id = v.player_id
+         AND pwm.season = v.season
+         AND pwm.week = v.week
         WHERE v.league_id = ?
           AND v.season = ?
           AND v.week = ?
@@ -101,3 +106,42 @@ def search_player_projections_by_name(
     ).fetchall()
 
     return [dict(r) for r in rows]
+
+
+def get_player_weekly_projection(
+    conn,
+    league_id: str,
+    season: int,
+    week: int,
+    player_id: str,
+) -> Optional[Dict[str, Any]]:
+    row = conn.execute(
+        """
+        SELECT
+            v.player_id,
+            v.player_name,
+            v.position,
+            v.season,
+            v.week,
+            v.league_id,
+            v.opp_team,
+            v.is_home,
+            pwm.actual_points,
+            v.baseline_points,
+            v.multiplier,
+            v.bonus,
+            v.final_projection
+        FROM v_player_weekly_final_proj AS v
+        LEFT JOIN player_week_meta AS pwm
+          ON pwm.player_id = v.player_id
+         AND pwm.season = v.season
+         AND pwm.week = v.week
+        WHERE v.league_id = ?
+          AND v.season = ?
+          AND v.week = ?
+          AND v.player_id = ?
+        """,
+        (league_id, season, week, player_id),
+    ).fetchone()
+
+    return dict(row) if row else None

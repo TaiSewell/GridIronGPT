@@ -14,7 +14,8 @@ import json
 import logging
 from typing import Any
 from data.data_client import DataClient
-from data.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_weekly_proj_stat
+from data.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_week_meta, upsert_player_weekly_proj_stat, upsert_projection_adjustment
+from backend.app.config import settings
 import re
 
 LOG = logging.getLogger("gridiron.sync")
@@ -215,15 +216,101 @@ def sync_weekly_projections(client: DataClient, season: int, week: int) -> int:
     in player_weekly_proj_stats as raw stat_key/value pairs.
     """
     LOG.info("Syncing weekly projections for season %s week %s", season, week)
+    offense_rows = client.get_weekly_offensive_projections(season, week) or []
+    defense_rows = client.get_weekly_defensive_projections(season, week) or []
 
-    data = client.get_weekly_projections(season, week)  # whatever your DataClient uses
+    offense_stat_map = {
+        "PassingYards": "pass_yd",
+        "PassingTouchdowns": "pass_td",
+        "PassingInterceptions": "pass_int",
+        "Passing2PointConversions": "pass_2pt",
+        "RushingYards": "rush_yd",
+        "RushingTouchdowns": "rush_td",
+        "Rushing2PointConversions": "rush_2pt",
+        "Receptions": "rec",
+        "ReceivingYards": "rec_yd",
+        "ReceivingTouchdowns": "rec_td",
+        "Receiving2PointConversions": "rec_2pt",
+        "FumblesLost": "fum_lost",
+    }
+    def _normalize_name(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", (name or "").lower())
+
+    def _build_player_index():
+        with get_conn() as conn:
+            rows = conn.execute(
+                "SELECT player_id, player_name, team, position FROM players"
+            ).fetchall()
+
+        index: dict[str, list[dict[str, str]]] = {}
+        dst_index: dict[str, str] = {}
+        for row in rows:
+            player_name = row["player_name"] or ""
+            team = row["team"] or ""
+            position = row["position"] or ""
+            player_id = row["player_id"]
+
+            key = _normalize_name(player_name)
+            if key:
+                index.setdefault(key, []).append(
+                    {
+                        "player_id": player_id,
+                        "team": team,
+                        "position": position,
+                    }
+                )
+
+            if position.upper() == "DST" and team:
+                dst_index[team.upper()] = player_id
+
+        return index, dst_index
+
+    def _resolve_player_id(
+        name: str | None,
+        team: str | None,
+        position: str | None,
+        index: dict[str, list[dict[str, str]]],
+    ) -> str | None:
+        if not name:
+            return None
+
+        key = _normalize_name(name)
+        candidates = index.get(key, [])
+        if not candidates:
+            return None
+
+        if team:
+            team_upper = team.upper()
+            filtered = [c for c in candidates if (c["team"] or "").upper() == team_upper]
+            if filtered:
+                candidates = filtered
+
+        if position:
+            pos_upper = position.upper()
+            filtered = [c for c in candidates if (c["position"] or "").upper() == pos_upper]
+            if filtered:
+                candidates = filtered
+
+        return candidates[0]["player_id"] if candidates else None
+
     count = 0
+    player_index, dst_index = _build_player_index()
 
     with get_conn() as conn:
-        for p in data:
-            player_id = p["player_id"]  # however you map SportsDataIO -> Sleeper id
-            # Loop through the stat fields you care about
-            for stat_key, value in p["stats"].items():   # or however it's shaped
+        for row in offense_rows:
+            name = row.get("Name") or row.get("PlayerName") or row.get("FullName")
+            team = row.get("Team") or row.get("TeamAbbr")
+            position = row.get("Position")
+            player_id = _resolve_player_id(name, team, position, player_index)
+            if not player_id:
+                continue
+
+            for sd_key, stat_key in offense_stat_map.items():
+                if sd_key not in row:
+                    continue
+                value = row.get(sd_key)
+                if value is None:
+                    continue
                 upsert_player_weekly_proj_stat(
                     conn,
                     season=season,
@@ -235,7 +322,316 @@ def sync_weekly_projections(client: DataClient, season: int, week: int) -> int:
                 )
                 count += 1
 
+        for row in defense_rows:
+            team = row.get("Team") or row.get("TeamAbbr")
+            if not team:
+                continue
+
+            team_upper = team.upper()
+            player_id = dst_index.get(team_upper)
+            if not player_id:
+                player_id = f"DST-{team_upper}"
+                upsert_player(conn, player_id, f"{team_upper} DST", team_upper, "DST", "active")
+
+            points = row.get("FantasyPoints")
+            if points is None:
+                continue
+
+            # Store raw DST fantasy projection as a single stat key.
+            upsert_player_weekly_proj_stat(
+                conn,
+                season=season,
+                week=week,
+                player_id=player_id,
+                stat_key="dst_fp",
+                value=float(points),
+                source="sportsdataio",
+            )
+            count += 1
+
     LOG.info("Upserted %d projection stat rows", count)
+    return count
+
+
+def sync_player_week_meta(client: DataClient, season: int, week: int) -> int:
+    """
+    Fetch schedule data and store opponent/home-away context for players.
+    """
+    LOG.info("Syncing player week meta for season %s week %s", season, week)
+    schedule = client.get_schedule(season, week) or []
+
+    team_context: dict[str, dict[str, object]] = {}
+    for game in schedule:
+        home = (game.get("HomeTeam") or game.get("HomeTeamAbbr") or "").upper()
+        away = (game.get("AwayTeam") or game.get("AwayTeamAbbr") or "").upper()
+        if not home or not away:
+            continue
+
+        team_context[home] = {"opp_team": away, "is_home": 1}
+        team_context[away] = {"opp_team": home, "is_home": 0}
+
+    if not team_context:
+        LOG.info("No schedule data available for season %s week %s", season, week)
+        return 0
+
+    count = 0
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT player_id, team FROM players WHERE team IS NOT NULL"
+        ).fetchall()
+
+        for row in rows:
+            team = (row["team"] or "").upper()
+            ctx = team_context.get(team)
+            if not ctx:
+                continue
+
+            upsert_player_week_meta(
+                conn,
+                player_id=row["player_id"],
+                season=season,
+                week=week,
+                opp_team=ctx["opp_team"],
+                is_home=ctx["is_home"],
+            )
+            count += 1
+
+    LOG.info("Upserted %d player_week_meta rows", count)
+    return count
+
+
+def _ensure_player_week_meta_actual_points(conn) -> None:
+    try:
+        conn.execute("ALTER TABLE player_week_meta ADD COLUMN actual_points REAL;")
+    except Exception:
+        # Column already exists or table is missing (initialized elsewhere)
+        pass
+
+
+def sync_weekly_actuals(client: DataClient, season: int, week: int, league_id: str | None = None) -> int:
+    """
+    Fetch weekly fantasy stats and store FantasyPointsPPR as actual_points.
+    """
+    LOG.info("Syncing weekly actuals for season %s week %s", season, week)
+    # Only load actuals for completed weeks (ScoresByWeekFinal returns finals only).
+    finals = client.get_schedule(season, week) or []
+    has_final = False
+    for game in finals:
+        status = str(game.get("Status") or "").lower()
+        if status.startswith("final") or status in {"f", "fo", "f/ot"}:
+            has_final = True
+            break
+
+    if not finals or not has_final:
+        LOG.info("Skipping weekly actuals (week not final yet): season=%s week=%s", season, week)
+        return 0
+
+    try:
+        rows = client.get_weekly_fantasy_stats(season, week) or []
+    except RuntimeError as exc:
+        LOG.warning("Skipping offensive actuals (stats endpoint failed): %s", exc)
+        rows = []
+
+    try:
+        dst_rows = client.get_weekly_defensive_stats(season, week) or []
+    except RuntimeError as exc:
+        LOG.warning("Skipping DST actuals (defense stats endpoint failed): %s", exc)
+        dst_rows = []
+
+    def _normalize_name(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", (name or "").lower())
+
+    def _build_player_index():
+        with get_conn() as conn:
+            data = conn.execute(
+                "SELECT player_id, player_name, team, position FROM players"
+            ).fetchall()
+
+        index: dict[str, list[dict[str, str]]] = {}
+        dst_index: dict[str, str] = {}
+        for row in data:
+            player_name = row["player_name"] or ""
+            team = row["team"] or ""
+            position = row["position"] or ""
+            player_id = row["player_id"]
+
+            key = _normalize_name(player_name)
+            if key:
+                index.setdefault(key, []).append(
+                    {
+                        "player_id": player_id,
+                        "team": team,
+                        "position": position,
+                    }
+                )
+
+            if position.upper() == "DST" and team:
+                dst_index[team.upper()] = player_id
+
+        return index, dst_index
+
+    def _resolve_player_id(
+        name: str | None,
+        team: str | None,
+        position: str | None,
+        index: dict[str, list[dict[str, str]]],
+    ) -> str | None:
+        if not name:
+            return None
+
+        key = _normalize_name(name)
+        candidates = index.get(key, [])
+        if not candidates:
+            return None
+
+        if team:
+            team_upper = team.upper()
+            filtered = [c for c in candidates if (c["team"] or "").upper() == team_upper]
+            if filtered:
+                candidates = filtered
+
+        if position:
+            pos_upper = position.upper()
+            filtered = [c for c in candidates if (c["position"] or "").upper() == pos_upper]
+            if filtered:
+                candidates = filtered
+
+        return candidates[0]["player_id"] if candidates else None
+
+    def _load_scoring_settings(conn, league_id: str) -> dict[str, float]:
+        rows = conn.execute(
+            """
+            SELECT stat_key, weight
+            FROM scoring_settings
+            WHERE league_id = ?
+            """,
+            (league_id,),
+        ).fetchall()
+        return {row["stat_key"]: float(row["weight"]) for row in rows}
+
+    def _load_dst_tiers(conn, league_id: str) -> dict[str, list[dict[str, float | None]]]:
+        rows = conn.execute(
+            """
+            SELECT metric, min_incl, max_incl, points
+            FROM dst_tiers
+            WHERE league_id = ?
+            ORDER BY min_incl ASC
+            """,
+            (league_id,),
+        ).fetchall()
+        tiers: dict[str, list[dict[str, float | None]]] = {}
+        for row in rows:
+            tiers.setdefault(row["metric"], []).append(
+                {
+                    "min_incl": row["min_incl"],
+                    "max_incl": row["max_incl"],
+                    "points": float(row["points"]),
+                }
+            )
+        return tiers
+
+    def _tier_points(tiers, metric: str, value: float | None) -> float:
+        if value is None:
+            return 0.0
+        for tier in tiers.get(metric, []):
+            min_incl = tier["min_incl"]
+            max_incl = tier["max_incl"]
+            if value >= min_incl and (max_incl is None or value <= max_incl):
+                return float(tier["points"])
+        return 0.0
+
+    count = 0
+    player_index, dst_index = _build_player_index()
+
+    with get_conn() as conn:
+        _ensure_player_week_meta_actual_points(conn)
+        league_id = league_id or settings.SLEEPER_LEAGUE_ID
+        scoring_weights = _load_scoring_settings(conn, league_id) if league_id else {}
+        dst_tiers = _load_dst_tiers(conn, league_id) if league_id else {}
+
+        for row in rows:
+            points = row.get("FantasyPointsPPR")
+            if points is None:
+                continue
+
+            position = row.get("Position")
+            team = row.get("Team") or row.get("TeamAbbr")
+            name = row.get("Name") or row.get("PlayerName") or row.get("FullName")
+
+            player_id = _resolve_player_id(name, team, position, player_index)
+            if not player_id and team and (position or "").upper() == "DST":
+                team_upper = team.upper()
+                player_id = dst_index.get(team_upper)
+                if not player_id:
+                    player_id = f"DST-{team_upper}"
+                    upsert_player(conn, player_id, f"{team_upper} DST", team_upper, "DST", "active")
+
+            if not player_id:
+                continue
+
+            upsert_player_week_meta(
+                conn,
+                player_id=player_id,
+                season=season,
+                week=week,
+                opp_team=None,
+                is_home=None,
+                actual_points=float(points),
+            )
+            count += 1
+
+        defense_stat_map = {
+            "Sacks": "dst_sack",
+            "Interceptions": "dst_int",
+            "FumblesRecovered": "dst_fum_rec",
+            "DefensiveTouchdowns": "dst_td",
+            "Safeties": "dst_safety",
+            "BlockedKicks": "dst_blk_kick",
+            "PointsAllowed": "dst_pa",
+            "YardsAllowed": "dst_ya",
+        }
+
+        for row in dst_rows:
+            team = row.get("Team") or row.get("TeamAbbr")
+            if not team:
+                continue
+            team_upper = team.upper()
+            player_id = dst_index.get(team_upper)
+            if not player_id:
+                player_id = f"DST-{team_upper}"
+                upsert_player(conn, player_id, f"{team_upper} DST", team_upper, "DST", "active")
+
+            linear = 0.0
+            dst_pa = None
+            dst_ya = None
+            for sd_key, stat_key in defense_stat_map.items():
+                if sd_key not in row:
+                    continue
+                value = row.get(sd_key)
+                if value is None:
+                    continue
+                if stat_key == "dst_pa":
+                    dst_pa = float(value)
+                if stat_key == "dst_ya":
+                    dst_ya = float(value)
+                linear += float(value) * float(scoring_weights.get(stat_key, 0.0))
+
+            total = linear
+            total += _tier_points(dst_tiers, "points_allowed", dst_pa)
+            total += _tier_points(dst_tiers, "yards_allowed", dst_ya)
+
+            upsert_player_week_meta(
+                conn,
+                player_id=player_id,
+                season=season,
+                week=week,
+                opp_team=None,
+                is_home=None,
+                actual_points=float(total),
+            )
+            count += 1
+
+    LOG.info("Upserted %d actual_points rows", count)
     return count
 
 
@@ -354,6 +750,21 @@ def main() -> None:
     match_p.add_argument("league_id")
     match_p.add_argument("week", type=int)
 
+    meta_p = sub.add_parser("week-meta", help="Sync player week meta (opp/home)")
+    meta_p.add_argument("season", type=int)
+    meta_p.add_argument("week", type=int)
+
+    adj_p = sub.add_parser("adjustments", help="Set projection adjustments for a league")
+    adj_p.add_argument("league_id")
+    adj_p.add_argument("--position", default="ALL")
+    adj_p.add_argument("--multiplier", type=float, required=True)
+    adj_p.add_argument("--bonus", type=float, default=0.0)
+
+    actuals_p = sub.add_parser("week-actuals", help="Sync weekly fantasy actuals (PPR + DST)")
+    actuals_p.add_argument("season", type=int)
+    actuals_p.add_argument("week", type=int)
+    actuals_p.add_argument("--league-id", dest="league_id", default=None)
+
     insp_p = sub.add_parser(
         "inspect",
         help="Inspect DB contents (counts + samples)",
@@ -384,6 +795,18 @@ def main() -> None:
     elif args.cmd == "matchups":
         initialize_db()
         sync_matchups(client, args.league_id, args.week)
+    elif args.cmd == "week-meta":
+        initialize_db()
+        sync_player_week_meta(client, args.season, args.week)
+    elif args.cmd == "adjustments":
+        initialize_db()
+        positions = [args.position] if args.position != "ALL" else ["QB", "RB", "WR", "TE", "K", "DST"]
+        with get_conn() as conn:
+            for pos in positions:
+                upsert_projection_adjustment(conn, args.league_id, pos, args.multiplier, args.bonus)
+    elif args.cmd == "week-actuals":
+        initialize_db()
+        sync_weekly_actuals(client, args.season, args.week, league_id=args.league_id)
     elif args.cmd == "inspect":
         # don't initialize DB here; inspect whatever exists
         inspect_db(args.league_id, args.limit)

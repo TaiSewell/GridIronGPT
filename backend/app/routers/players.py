@@ -73,12 +73,18 @@ def get_player_projection(
     season: Optional[int] = None,
     league_id: Optional[str] = None,
 ):
-    data = psvc.get_player_with_weekly_projection_service(
-        player_id=player_id,
-        week=week,
-        season=season,
-        league_id=league_id,
-    )
-    if not data:
-        raise HTTPException(status_code=404, detail="Player not found")
-    return data
+    try:
+        data = psvc.get_player_with_weekly_projection_service(
+            player_id=player_id,
+            week=week,
+            season=season,
+            league_id=league_id,
+        )
+        if not data:
+            raise HTTPException(status_code=404, detail="Player not found")
+        return data
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Helpful for MVP debugging (you can remove later)
+        raise HTTPException(status_code=500, detail=str(e))

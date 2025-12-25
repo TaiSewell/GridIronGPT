@@ -280,24 +280,20 @@ def upsert_player(conn, player_id, player_name, team, position, status) -> None:
             (player_id, player_name, team, position, status)
         )
 
-def upsert_player_week_meta(conn, league_id, season, week, player_id, opp_team, is_home, projected_points, actual_points, status):
+def upsert_player_week_meta(conn, player_id, season, week, opp_team, is_home, actual_points=None) -> None:
     conn.execute(
         """
         INSERT INTO player_week_meta (
-            league_id, season, week, player_id,
-            opp_team, is_home, projected_points, actual_points, status
+            player_id, season, week, opp_team, is_home, actual_points
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(league_id, season, week, player_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(player_id, season, week)
         DO UPDATE SET
             opp_team = excluded.opp_team,
             is_home = excluded.is_home,
-            projected_points = excluded.projected_points,
-            actual_points = excluded.actual_points,
-            status = excluded.status,
-            updated_at = CURRENT_TIMESTAMP;
+            actual_points = COALESCE(excluded.actual_points, player_week_meta.actual_points);
         """,
-        (league_id, season, week, player_id, opp_team, is_home, projected_points, actual_points, status),
+        (player_id, season, week, opp_team, is_home, actual_points),
     )
 
 def upsert_matchup(conn, league_id, season, week, roster_id, matchup_id, players_json, points) -> None:
@@ -401,6 +397,19 @@ def upsert_dst_tier(conn, league_id, metric, min_incl, max_incl, points) -> None
             (league_id, metric, min_incl, max_incl, points)
         )
 
+
+def upsert_projection_adjustment(conn, league_id, position, multiplier, bonus) -> None:
+    conn.execute(
+        """
+        INSERT INTO projection_adjustments(league_id, position, multiplier, bonus)
+        VALUES(?, ?, ?, ?)
+        ON CONFLICT(league_id, position)
+        DO UPDATE SET
+            multiplier = excluded.multiplier,
+            bonus = excluded.bonus;
+        """,
+        (league_id, position, multiplier, bonus),
+    )
     
 
     

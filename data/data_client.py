@@ -103,3 +103,13 @@ class DataClient:
         season_key = self.season_key(year)
         path = f"scores/json/ScoresByWeekFinal/{season_key}/{week}"
         return self.sportsdata_get_json(path)
+
+    def get_weekly_fantasy_stats(self, year: int, week: int) -> json:
+        season_key = self.season_key(year)
+        path = f"stats/json/FantasyGameStatsByWeek/{season_key}/{week}"
+        return self.sportsdata_get_json(path)
+
+    def get_weekly_defensive_stats(self, year: int, week: int) -> json:
+        season_key = self.season_key(year)
+        path = f"stats/json/FantasyDefenseGameStatsByWeek/{season_key}/{week}"
+        return self.sportsdata_get_json(path)
