@@ -1,7 +1,10 @@
 """
+=============================================================
 dst_service.py
+Author: Tai Sewell
 
 Business logic for DST projections and actuals.
+=============================================================
 """
 
 from typing import Optional
@@ -16,14 +19,13 @@ from backend.app.config import settings
 def list_dst_weekly_projections_service(
     week: int,
     season: Optional[int] = None,
-    league_id: Optional[str] = None,
     team: Optional[str] = None,
     limit: int = 32,
     offset: int = 0,
 ):
-    league_id = league_id or settings.SLEEPER_LEAGUE_ID
+    league_id = settings.SLEEPER_LEAGUE_ID
     if not league_id:
-        raise ValueError("league_id is required (or set SLEEPER_LEAGUE_ID).")
+        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
 
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)

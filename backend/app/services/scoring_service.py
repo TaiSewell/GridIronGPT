@@ -1,4 +1,5 @@
 """
+=============================================================
 scoring_service.py
 Developer: Tai Sewell
 ------------------
@@ -13,6 +14,7 @@ and returns a list of player projections.
 
 This module does NOT talk to external APIs or handle caching.
 It only reads from SQLite via data/db.py and applies scoring rules.
+=============================================================
 """
 
 from __future__ import annotations

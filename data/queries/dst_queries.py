@@ -1,7 +1,10 @@
 """
+=============================================================
 dst_queries.py
+Author: Tai Sewell
 
-Queries for DST projections and actuals.
+Description: Queries for DST projections and actuals.
+=============================================================
 """
 
 from typing import Any, Dict, List, Optional

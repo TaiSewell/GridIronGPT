@@ -1,3 +1,12 @@
+"""
+=============================================================
+leagues_service.py
+Author: Tai Sewell
+
+Business logic for providing league information.
+=============================================================
+"""
+
 from data.db import get_conn
 import data.queries as q
 

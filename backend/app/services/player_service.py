@@ -1,4 +1,5 @@
 """
+=============================================================
 player_service.py
 Developer: Tai Sewell
 ------------------
@@ -8,7 +9,7 @@ Handles:
 - Player information retrieval and updates
 - Player statistics and performance data
 - Player-related queries from the database
-
+=============================================================
 """
 
 from typing import Optional
@@ -47,10 +48,11 @@ def search_player_projections_service(
     name: str,
     week: int,
     limit: int = 25,
-    league_id: Optional[str] = None,
     season: Optional[int] = None,
 ):
-    league_id = league_id or settings.SLEEPER_LEAGUE_ID
+    league_id = settings.SLEEPER_LEAGUE_ID
+    if not league_id:
+        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
 
     # IMPORTANT: cache must be per-league (don't use a global CacheManager here)
     cache = CacheManager(league_id=league_id)
@@ -97,12 +99,11 @@ def list_players_service(limit: int = 200, offset: int = 0):
 def get_player_with_weekly_projection_service(
     player_id: str,
     week: int,
-    league_id: Optional[str] = None,
     season: Optional[int] = None,
 ):
-    league_id = league_id or settings.SLEEPER_LEAGUE_ID
+    league_id = settings.SLEEPER_LEAGUE_ID
     if not league_id:
-        raise ValueError("league_id is required (or set SLEEPER_LEAGUE_ID).")
+        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
 
     # IMPORTANT: cache must be per-league (don't use a global CacheManager here)
     cache = CacheManager(league_id=league_id)

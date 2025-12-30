@@ -50,7 +50,6 @@ def search_player_projections(
     week: int = Query(..., ge=1, le=18),
     limit: int = Query(25, ge=1, le=100),
     season: Optional[int] = None,
-    league_id: Optional[str] = None,
 ):
     try:
         return psvc.search_player_projections_service(
@@ -58,12 +57,10 @@ def search_player_projections(
             week=week,
             limit=limit,
             season=season,
-            league_id=league_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Helpful for MVP debugging (you can remove later)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{player_id}/projection")
@@ -71,14 +68,12 @@ def get_player_projection(
     player_id: str,
     week: int = Query(..., ge=1, le=18),
     season: Optional[int] = None,
-    league_id: Optional[str] = None,
 ):
     try:
         data = psvc.get_player_with_weekly_projection_service(
             player_id=player_id,
             week=week,
             season=season,
-            league_id=league_id,
         )
         if not data:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -86,5 +81,4 @@ def get_player_projection(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Helpful for MVP debugging (you can remove later)
         raise HTTPException(status_code=500, detail=str(e))

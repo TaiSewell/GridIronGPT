@@ -1,9 +1,12 @@
 """
+=============================================================
 player_queries.py
+Author: Tai Sewell
 
 Module for handling database queries related to player data.
 Provides functionality to retrieve, filter, and manage player information
 from the database including player statistics, profiles, and related metadata.
+=============================================================
 """
 
 from typing import Any, Dict, List, Optional

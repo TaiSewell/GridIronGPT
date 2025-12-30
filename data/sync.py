@@ -118,12 +118,21 @@ def sync_league(client: DataClient, league_id: str) -> None:
             display_name = u.get("display_name") or u.get("username") or ""
             avatar = u.get("avatar") or ""
             metadata = u.get("metadata") or {}
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except json.JSONDecodeError:
+                    metadata = {}
+
             if isinstance(metadata, dict):
                 team_name = metadata.get("team_name") or ""
             else:
+                team_name = ""
+
+            if not team_name:
                 team_name = u.get("team_name") or ""
 
-            metadata_json = json.dumps(metadata or {})
+            metadata_json = json.dumps(metadata if isinstance(metadata, dict) else {})
             upsert_user(conn, uid, display_name, avatar, team_name, metadata_json)
 
         # rosters
@@ -132,8 +141,13 @@ def sync_league(client: DataClient, league_id: str) -> None:
             roster_id = r.get("roster_id") or r.get("id")
             owner_id = r.get("owner_id") or r.get("user_id") or r.get("owner")
             players = r.get("players") or []
-            starters_json = json.dumps(players)
-            bench_json = json.dumps([])
+            starters = r.get("starters") or []
+
+            starters_set = set(starters)
+            bench = [p for p in players if p not in starters_set]
+
+            starters_json = json.dumps(starters)
+            bench_json = json.dumps(bench)
 
             upsert_roster(
                 conn,

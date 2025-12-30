@@ -12,10 +12,18 @@
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
-import os
+from pathlib import Path
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file="../.env", env_file_encoding="utf-8", extra="ignore")
+    _base_dir = Path(__file__).resolve().parent  # backend/app
+    _env_root = _base_dir.parent.parent / ".env"
+    _env_backend = _base_dir.parent / ".env"
+
+    model_config = SettingsConfigDict(
+        env_file=[str(_env_root), str(_env_backend)],
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000

@@ -1,3 +1,12 @@
+"""
+=============================================================
+league_queries.py
+Author: Tai Sewell
+
+Description: This contains league queries
+=============================================================
+"""
+
 def get_league_season(conn, league_id: str) -> int | None:
     """
     Return the current season for a league.

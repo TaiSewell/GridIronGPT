@@ -289,8 +289,8 @@ def upsert_player_week_meta(conn, player_id, season, week, opp_team, is_home, ac
         VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(player_id, season, week)
         DO UPDATE SET
-            opp_team = excluded.opp_team,
-            is_home = excluded.is_home,
+            opp_team = COALESCE(excluded.opp_team, player_week_meta.opp_team),
+            is_home = COALESCE(excluded.is_home, player_week_meta.is_home),
             actual_points = COALESCE(excluded.actual_points, player_week_meta.actual_points);
         """,
         (player_id, season, week, opp_team, is_home, actual_points),
