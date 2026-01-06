@@ -85,13 +85,9 @@ def search_player_projections_by_name(
             v.position,
             v.season,
             v.week,
-            v.league_id,
             v.opp_team,
             v.is_home,
             pwm.actual_points,
-            v.baseline_points,
-            v.multiplier,
-            v.bonus,
             v.final_projection
         FROM v_player_weekly_final_proj AS v
         LEFT JOIN player_week_meta AS pwm
@@ -126,13 +122,9 @@ def get_player_weekly_projection(
             v.position,
             v.season,
             v.week,
-            v.league_id,
             v.opp_team,
             v.is_home,
             pwm.actual_points,
-            v.baseline_points,
-            v.multiplier,
-            v.bonus,
             v.final_projection
         FROM v_player_weekly_final_proj AS v
         LEFT JOIN player_week_meta AS pwm
@@ -148,3 +140,43 @@ def get_player_weekly_projection(
     ).fetchone()
 
     return dict(row) if row else None
+
+
+def get_player_weekly_projections_by_ids(
+    conn,
+    league_id: str,
+    season: int,
+    week: int,
+    player_ids: List[str],
+) -> List[Dict[str, Any]]:
+    if not player_ids:
+        return []
+
+    placeholders = ",".join("?" for _ in player_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            v.player_id,
+            v.player_name,
+            v.position,
+            v.season,
+            v.week,
+            v.opp_team,
+            v.is_home,
+            pwm.actual_points,
+            v.final_projection
+        FROM v_player_weekly_final_proj AS v
+        LEFT JOIN player_week_meta AS pwm
+          ON pwm.player_id = v.player_id
+         AND pwm.season = v.season
+         AND pwm.week = v.week
+        WHERE v.league_id = ?
+          AND v.season = ?
+          AND v.week = ?
+          AND v.player_id IN ({placeholders})
+        ORDER BY v.final_projection DESC, v.player_name ASC
+        """,
+        (league_id, season, week, *player_ids),
+    ).fetchall()
+
+    return [dict(r) for r in rows]

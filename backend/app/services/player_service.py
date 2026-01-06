@@ -139,3 +139,37 @@ def get_player_with_weekly_projection_service(
             week=week,
             player_id=player_id,
         )
+
+
+def get_player_weekly_projections_by_ids_service(
+    player_ids: list[str],
+    week: int,
+    season: Optional[int] = None,
+):
+    league_id = settings.SLEEPER_LEAGUE_ID
+    if not league_id:
+        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
+
+    cache = CacheManager(league_id=league_id)
+
+    cache.ensure_league_bundle_cached(week=None)
+    cache.ensure_players_cached()
+
+    if season is None:
+        with get_conn() as conn:
+            season = q_league.get_league_season(conn, league_id)
+        if season is None:
+            raise ValueError(f"League not found in DB (cannot resolve season): {league_id}")
+
+    cache.ensure_weekly_projections_cached(season, week)
+    cache.ensure_player_week_meta_cached(season, week)
+    cache.ensure_weekly_actuals_cached(season, week)
+
+    with get_conn() as conn:
+        return q_player.get_player_weekly_projections_by_ids(
+            conn=conn,
+            league_id=league_id,
+            season=season,
+            week=week,
+            player_ids=player_ids,
+        )

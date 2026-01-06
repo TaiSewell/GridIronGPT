@@ -3,9 +3,17 @@
  File: response_formatter.py
  Author: Tai Sewell
  Description:
-     This module parses and normalizes OpenAI API responses
-     into a consistent structure. It extracts summaries,
-     key points, recommendations, and caveats to be returned
-     through the FastAPI /ai endpoints.
+     Normalizes AI responses into a consistent payload.
 =============================================================
 """
+
+from __future__ import annotations
+
+from typing import Any, Dict
+
+
+def format_roster_compare_response(summary: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "summary": summary,
+        "data": payload,
+    }
