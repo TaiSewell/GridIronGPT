@@ -1,5 +1,5 @@
-from data.cache_manager import CacheManager
-from data.data_client import DataClient
+from backend.cache_manager import CacheManager
+from backend.data_client import DataClient
 
 # Put your actual league ID here
 LEAGUE_ID = "1266923357840871424"

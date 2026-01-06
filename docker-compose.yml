@@ -6,6 +6,9 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    # Need to add volume for db so it doesnt get erased each boot up / get rid of copy data/ data/ in dockerfile backend
+    volumes:
+      - ./data:/app/data
     env_file:
       - .env
     environment:

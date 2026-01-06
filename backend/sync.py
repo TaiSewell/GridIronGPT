@@ -13,8 +13,8 @@ import argparse
 import json
 import logging
 from typing import Any
-from data.data_client import DataClient
-from data.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_week_meta, upsert_player_weekly_proj_stat, upsert_projection_adjustment
+from backend.data_client import DataClient
+from backend.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_week_meta, upsert_player_weekly_proj_stat, upsert_projection_adjustment
 from backend.app.config import settings
 import re
 

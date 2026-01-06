@@ -9,10 +9,10 @@ Business logic for DST projections and actuals.
 
 from typing import Optional
 
-from data.db import get_conn
-import data.queries.dst_queries as q_dst
-import data.queries.league_queries as q_league
-from data.cache_manager import CacheManager
+from backend.db import get_conn
+import backend.queries.dst_queries as q_dst
+import backend.queries.league_queries as q_league
+from backend.cache_manager import CacheManager
 from backend.app.config import settings
 
 

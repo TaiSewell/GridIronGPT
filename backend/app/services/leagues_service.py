@@ -7,8 +7,8 @@ Business logic for providing league information.
 =============================================================
 """
 
-from data.db import get_conn
-import data.queries as q
+from backend.db import get_conn
+import backend.queries as q
 
 def get_league_season_service(league_id: str) -> int:
     with get_conn() as conn:

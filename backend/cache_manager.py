@@ -14,9 +14,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from data.db import get_conn
-import data.sync as sync
-from data.data_client import DataClient
+from backend.db import get_conn
+import backend.sync as sync
+from backend.data_client import DataClient
 
 class CacheManager:
     """

@@ -20,7 +20,7 @@ It only reads from SQLite via data/db.py and applies scoring rules.
 from __future__ import annotations
 from typing import Any, Dict, List, Mapping, Optional
 import logging
-from data.db import get_conn 
+from backend.db import get_conn 
 
 LOG = logging.getLogger(__name__)
 

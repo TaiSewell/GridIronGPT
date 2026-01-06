@@ -189,8 +189,8 @@ def _reload_modules_with_temp_db(monkeypatch, db_path):
     monkeypatch.setenv("DB_PATH", str(db_path))
 
     # Import the modules fresh
-    import data.db as db_mod
-    import data.sync as sync_mod
+    import backend.db as db_mod
+    import backend.sync as sync_mod
     import importlib
 
     importlib.reload(db_mod)

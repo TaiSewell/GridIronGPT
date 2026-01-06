@@ -14,10 +14,10 @@ Handles:
 
 from typing import Optional
 
-from data.db import get_conn
-import data.queries.player_queries as q_player
-import data.queries.league_queries as q_league
-from data.cache_manager import CacheManager
+from backend.db import get_conn
+import backend.queries.player_queries as q_player
+import backend.queries.league_queries as q_league
+from backend.cache_manager import CacheManager
 from backend.app.config import settings
 
 cache = CacheManager(league_id=settings.SLEEPER_LEAGUE_ID)

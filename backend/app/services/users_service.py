@@ -13,9 +13,9 @@ from typing import List, Optional
 import json
 
 from backend.app.config import settings
-from data.cache_manager import CacheManager
-from data.db import get_conn
-import data.queries.user_queries as q_users
+from backend.cache_manager import CacheManager
+from backend.db import get_conn
+import backend.queries.user_queries as q_users
 
 
 def _get_league_id() -> str:
