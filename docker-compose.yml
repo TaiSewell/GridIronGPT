@@ -1,24 +1,22 @@
+version: "3.9"
 services:
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    env_file:
-      - ./.env
-    environment:
-      - DB_PATH=/app/dbdata/gridiron.db
-    volumes:
-      - ./data/gridiron.db:/app/dbdata/gridiron.db
     ports:
       - "8000:8000"
-
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app:/app/backend
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    environment:
-      - VITE_API_BASE=http://backend:8000
-    depends_on:
-      - backend
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_BASE=http://localhost:8000
+    depends_on:
+      - backend
