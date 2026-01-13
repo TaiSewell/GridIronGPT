@@ -5,7 +5,7 @@
   --cloud: #f7f4ef;
   --mint: #c9f9e5;
   --sun: #f9b65d;
-  --ocean: #0f5b5a;
+  --ocean: #0f5c5b;
   --rose: #ed6960;
   --shadow: rgba(16, 17, 20, 0.12);
 }
@@ -150,6 +150,10 @@ body {
   display: grid;
   gap: 0.35rem;
   animation: rise 0.35s ease;
+}
+
+.chat-message p {
+  white-space: pre-wrap;
 }
 
 .chat-message .chat-role {

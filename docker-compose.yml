@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   backend:
     build:
@@ -6,13 +5,13 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
-    # Need to add volume for db so it doesnt get erased each boot up / get rid of copy data/ data/ in dockerfile backend
-    volumes:
-      - ./data:/app/data
+    volumes:                                                                                                  
+      - ./data/gridiron.db:/app/data/gridiron.db
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app:/app/backend
+      - DB_PATH=/app/data/gridiron.db
   frontend:
     build:
       context: .

@@ -9,11 +9,19 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
-def format_roster_compare_response(summary: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    return {
+def format_roster_compare_response(
+    summary: str,
+    reasoning: Optional[str],
+    recommendation: Optional[str],
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    response = {
         "summary": summary,
+        "reasoning": reasoning,
+        "recommendation": recommendation,
         "data": payload,
     }
+    return response

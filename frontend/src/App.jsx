@@ -29,13 +29,45 @@ function parseComparePrompt(input) {
   return { userA, userB, week, includeBench }
 }
 
+function parseStartSitPrompt(input) {
+  const text = input.trim()
+  const isStartSit = /(roster|lineup)\s+recommendations/i.test(text)
+  if (!isStartSit) {
+    return { intent: false }
+  }
+
+  const weekMatch = text.match(/week\s+(\d{1,2})/i)
+  const week = weekMatch ? Number(weekMatch[1]) : null
+  if (!week) {
+    return {
+      intent: true,
+      error: 'Add a week, e.g. "give me lineup recommendations for jdose week 7".'
+    }
+  }
+
+  const userMatch = text.match(/for\s+(.+?)(?:\s+week|\s*$)/i)
+  if (!userMatch) {
+    return {
+      intent: true,
+      error: 'Add a roster name, e.g. "give me roster recommendations for jdose week 7".'
+    }
+  }
+
+  const userA = userMatch[1].trim()
+  if (!userA) {
+    return { intent: true, error: 'I need a roster name to recommend.' }
+  }
+
+  return { intent: true, userA, week }
+}
+
 export default function App() {
   const [health, setHealth] = useState(null)
   const [healthError, setHealthError] = useState(null)
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Ask me to compare two rosters. I will pull projections and summarize the edge.'
+      content: 'Ask me questions based on your fantasy league. I will do my best to assist you!'
     }
   ])
   const [input, setInput] = useState('')
@@ -58,22 +90,36 @@ export default function App() {
     setMessages(prev => [...prev, userMessage])
     setInput('')
 
-    const parsed = parseComparePrompt(userMessage.content)
-    if (parsed.error) {
+    const startSitParsed = parseStartSitPrompt(userMessage.content)
+    if (startSitParsed.intent) {
+      if (startSitParsed.error) {
+        setMessages(prev => [...prev, { role: 'system', content: startSitParsed.error }])
+        return
+      }
+    }
+
+    const parsed = startSitParsed.intent ? null : parseComparePrompt(userMessage.content)
+    if (parsed?.error) {
       setMessages(prev => [...prev, { role: 'system', content: parsed.error }])
       return
     }
 
-    const payload = {
-      user_a: parsed.userA,
-      user_b: parsed.userB,
-      week: parsed.week,
-      include_bench: parsed.includeBench
-    }
+    const payload = startSitParsed.intent
+      ? {
+          user_a: startSitParsed.userA,
+          week: startSitParsed.week
+        }
+      : {
+          user_a: parsed.userA,
+          user_b: parsed.userB,
+          week: parsed.week,
+          include_bench: parsed.includeBench
+        }
 
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/ai/compare-rosters`, {
+      const endpoint = startSitParsed.intent ? 'start-sit' : 'compare-rosters'
+      const response = await fetch(`${API_BASE}/ai/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -85,7 +131,33 @@ export default function App() {
       }
 
       const data = await response.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.summary }])
+      let formatted = ''
+      if (startSitParsed.intent) {
+        formatted = [data.recommendation, data.reasoning].filter(Boolean).join('\n\n')
+      } else {
+        const rawReasoning = data.reasoning || ''
+        const trimmedReasoning = rawReasoning.replace(/^Positional edges:\s*/i, '')
+        const reasoningItems = trimmedReasoning
+          ? trimmedReasoning.split(',').map(chunk => ` - ${chunk.trim()}`)
+          : [' - Projections are close across positions.']
+
+        const recommendationLine = data.recommendation
+          ? `Recommendation to your lineup: ${data.recommendation.replace(/^Recommendation to your lineup:\s*/i, '')}`
+          : 'Recommendation to your lineup: no changes suggested.'
+
+        formatted = [
+          data.summary,
+          '',
+          'Positional edges: ',
+          ...reasoningItems,
+          '',
+          recommendationLine
+        ].join('\n')
+      }
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: formatted }
+      ])
     } catch (err) {
       setMessages(prev => [
         ...prev,
@@ -101,7 +173,7 @@ export default function App() {
       <header className="hero">
         <div className="hero-title">
           <p className="hero-kicker">GridironGPT</p>
-          <h1>Roster comparison command center</h1>
+          <h1>Fantasy Football AI Assistant</h1>
           <p className="hero-subtitle">
             Type a matchup request, we will call your AI service layer and return a clear edge.
           </p>

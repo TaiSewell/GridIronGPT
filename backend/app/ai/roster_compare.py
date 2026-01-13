@@ -68,13 +68,26 @@ def compare_rosters_service(
     }
 
     summary = None
+    reasoning = None
+    recommendation = None
     try:
         messages = build_roster_compare_messages(payload)
-        summary = run_chat_completion(messages)
+        raw_response = run_chat_completion(messages)
+        parsed = _parse_ai_response(raw_response)
+        summary = parsed.get("summary")
+        reasoning = parsed.get("reasoning")
+        recommendation = parsed.get("recommendation")
     except Exception:
         summary = comparison["summary"]
 
-    return format_roster_compare_response(summary, payload)
+    if not summary:
+        summary = comparison["summary"]
+    if not reasoning:
+        reasoning = _build_reasoning(roster_a_data, roster_b_data, comparison)
+    if not recommendation:
+        recommendation = _build_recommendation(roster_a_data, roster_b_data, comparison)
+
+    return format_roster_compare_response(summary, reasoning, recommendation, payload)
 
 
 def _extract_roster_players(roster: Dict[str, Any], include_bench: bool) -> List[str]:
@@ -88,12 +101,14 @@ def _extract_roster_players(roster: Dict[str, Any], include_bench: bool) -> List
 
 def _safe_json_list(value: Optional[str]) -> List[Any]:
     if not value:
-        return []
+        result = []
     try:
         data = json.loads(value)
     except (TypeError, ValueError):
-        return []
-    return data if isinstance(data, list) else []
+        result = []
+    else:
+        result = data if isinstance(data, list) else []
+    return result
 
 
 def _build_roster_projection(
@@ -140,18 +155,19 @@ def _summarize_comparison(
     position_advantage = _position_breakdown(roster_a, roster_b)
     leader = roster_a["name"] if diff > 0 else roster_b["name"] if diff < 0 else "Even"
 
-    summary = (
+    summary_text = (
         f"{leader} projects higher by {abs(diff)} points."
         if leader != "Even"
         else "Both rosters project evenly."
     )
 
-    return {
+    result = {
         "leader": leader,
         "point_diff": diff,
         "position_advantage": position_advantage,
-        "summary": summary,
+        "summary": summary_text,
     }
+    return result
 
 
 def _position_breakdown(
@@ -185,3 +201,100 @@ def _position_breakdown(
         )
 
     return breakdown
+
+
+def _parse_ai_response(response_text: str) -> Dict[str, Any]:
+    """
+    Parse JSON response from the AI. Falls back to empty dict on failure.
+    """
+    parsed: Dict[str, Any] = {}
+    try:
+        parsed = json.loads(response_text)
+    except json.JSONDecodeError:
+        start_index = response_text.find("{")
+        end_index = response_text.rfind("}")
+        if start_index != -1 and end_index != -1 and end_index > start_index:
+            snippet = response_text[start_index : end_index + 1]
+            try:
+                parsed = json.loads(snippet)
+            except json.JSONDecodeError:
+                parsed = {}
+    return parsed
+
+
+def _build_reasoning(
+    roster_a: Dict[str, Any],
+    roster_b: Dict[str, Any],
+    comparison: Dict[str, Any],
+) -> str:
+    """
+    Build a simple positional reasoning summary from comparison data.
+    """
+    position_advantage = comparison.get("position_advantage") or []
+    sorted_positions = sorted(
+        position_advantage,
+        key=lambda entry: abs(float(entry.get("diff", 0.0))),
+        reverse=True,
+    )
+
+    reasons: List[str] = []
+    for entry in sorted_positions:
+        if len(reasons) >= 3:
+            break
+        diff = entry.get("diff")
+        if not isinstance(diff, (int, float)) or diff == 0:
+            continue
+        position = entry.get("position") or "UNK"
+        leader_name = roster_a["name"] if diff > 0 else roster_b["name"]
+        reasons.append(f"{position} (+{abs(round(diff, 2))} for {leader_name})")
+
+    if reasons:
+        reasoning_text = "Positional edges: " + ", ".join(reasons) + "."
+    else:
+        reasoning_text = "No clear positional edges; projections are close across positions."
+
+    return reasoning_text
+
+
+def _build_recommendation(
+    roster_a: Dict[str, Any],
+    roster_b: Dict[str, Any],
+    comparison: Dict[str, Any],
+) -> str:
+    """
+    Build a one-sentence lineup recommendation based on the largest projection gaps.
+    """
+    position_advantage = comparison.get("position_advantage") or []
+    sorted_positions = sorted(
+        position_advantage,
+        key=lambda entry: abs(float(entry.get("diff", 0.0))),
+        reverse=True,
+    )
+
+    trailing_positions: List[str] = []
+    leader = comparison.get("leader")
+    trailing_name = roster_b["name"] if leader == roster_a["name"] else roster_a["name"]
+
+    for entry in sorted_positions:
+        if len(trailing_positions) >= 2:
+            break
+        diff = entry.get("diff")
+        if not isinstance(diff, (int, float)) or diff == 0:
+            continue
+        if leader == roster_a["name"] and diff > 0:
+            trailing_positions.append(entry.get("position") or "UNK")
+        elif leader == roster_b["name"] and diff < 0:
+            trailing_positions.append(entry.get("position") or "UNK")
+
+    if leader == "Even" or not trailing_positions:
+        recommendation_text = (
+            "Recommendation to your lineup: projections are close, consider your highest-upside starters."
+        )
+    else:
+        positions_text = ", ".join(trailing_positions)
+        recommendation_text = (
+            "Recommendation to your lineup: consider upgrades or swaps at "
+            f"{positions_text} to close the gap for {trailing_name}."
+        )
+
+    return recommendation_text

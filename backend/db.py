@@ -11,10 +11,12 @@
 
 import os
 import sqlite3
+from pathlib import Path
 from contextlib import contextmanager
 from typing import Any, Iterable, List, Dict, Optional, Mapping
 
 DB_PATH = os.getenv("DB_PATH", "./data/gridiron.db")
+SCHEMA_PATH = os.getenv("SCHEMA_PATH", "./backend/schema.sql")
 
 @contextmanager
 def get_conn():
@@ -29,6 +31,8 @@ def get_conn():
     # Make sure the folder exists
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
+    print(f"DEBUG: Connecting to database at: {os.path.abspath(DB_PATH)}")
+    print(f"DEBUG: Does file exist? {os.path.exists(DB_PATH)}")
     conn = sqlite3.connect(DB_PATH)
     # Make rows behave like dictionaries
     conn.row_factory = sqlite3.Row
@@ -43,8 +47,7 @@ def get_conn():
         conn.commit()
         conn.close()
 
-
-def initialize_db(schema_path: str = "./data/schema.sql") -> None:
+def initialize_db(schema_path: str | Path = SCHEMA_PATH) -> None:
     """
     Create tables if they do not exist by executing schema.sql.
 
@@ -56,6 +59,7 @@ def initialize_db(schema_path: str = "./data/schema.sql") -> None:
     with get_conn() as conn, open(schema_path, "r", encoding="utf-8") as f:
         sql = f.read()
         conn.executescript(sql)
+    print("Initializing DB at", os.getenv("DB_PATH"))
 
 def fetch_all(query: str, params: Iterable[Any] = ()) -> List[Mapping[str, Any]]:
     """

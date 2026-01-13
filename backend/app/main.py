@@ -8,10 +8,16 @@
      Serves as the entry point for the backend server.
 =============================================================
 """
+import logging
+import os
+import sqlite3
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
 from backend.app.routers import advice, health, players, rosters, dst, users
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="GridironGPT API", version="0.1.0")
 
@@ -30,3 +36,4 @@ app.include_router(players.router)
 app.include_router(dst.router)
 app.include_router(rosters.router)
 app.include_router(users.router)
+
