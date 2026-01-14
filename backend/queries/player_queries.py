@@ -180,3 +180,85 @@ def get_player_weekly_projections_by_ids(
     ).fetchall()
 
     return [dict(r) for r in rows]
+
+
+def get_latest_week_with_actual_points(
+    conn,
+    season: int,
+) -> Optional[int]:
+    row = conn.execute(
+        """
+        SELECT MAX(week) AS max_week
+        FROM player_week_meta
+        WHERE season = ?
+          AND actual_points IS NOT NULL
+        """,
+        (season,),
+    ).fetchone()
+
+    latest_week: Optional[int] = None
+    if row and row["max_week"] is not None:
+        latest_week = int(row["max_week"])
+
+    return latest_week
+
+
+def get_top_players_by_actual_points(
+    conn,
+    season: int,
+    week: int,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT
+            p.player_id,
+            p.player_name,
+            p.team,
+            p.position,
+            ROUND(SUM(pwm.actual_points), 2) AS total_points
+        FROM player_week_meta AS pwm
+        JOIN players AS p
+          ON p.player_id = pwm.player_id
+        WHERE pwm.season = ?
+          AND pwm.week <= ?
+          AND pwm.actual_points IS NOT NULL
+        GROUP BY
+            p.player_id,
+            p.player_name,
+            p.team,
+            p.position
+        ORDER BY total_points DESC, p.player_name ASC
+        LIMIT ?;
+        """,
+        (season, week, limit),
+    ).fetchall()
+
+    results = [dict(row) for row in rows]
+    return results
+
+
+def get_player_week_actuals(
+    conn,
+    season: int,
+    week: int,
+) -> List[Dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT
+            pwm.player_id,
+            pwm.week,
+            pwm.actual_points,
+            p.position
+        FROM player_week_meta AS pwm
+        JOIN players AS p
+          ON p.player_id = pwm.player_id
+        WHERE pwm.season = ?
+          AND pwm.week <= ?
+          AND pwm.actual_points IS NOT NULL
+        """,
+        (season, week),
+    ).fetchall()
+
+    results = [dict(row) for row in rows]
+    return results

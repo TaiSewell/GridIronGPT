@@ -14,7 +14,7 @@ import json
 import logging
 from typing import Any
 from backend.data_client import DataClient
-from backend.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_week_meta, upsert_player_weekly_proj_stat, upsert_projection_adjustment
+from backend.db import get_conn, initialize_db, fetch_all, fetch_one, upsert_league, upsert_user, upsert_roster, upsert_player, upsert_matchup, upsert_scoring_settings, upsert_player_week_meta, upsert_player_weekly_proj_stat, upsert_projection_adjustment, upsert_dst_weekly_points
 from backend.app.config import settings
 import re
 
@@ -25,6 +25,33 @@ logging.basicConfig(level=logging.INFO)
 # ----------------- Core sync helpers -----------------
 def _safe_get_player_name(p: dict[str, Any], player_id: str) -> str:
     return p.get("full_name") or p.get("name") or p.get("player_name") or str(player_id)
+
+
+def _extract_roster_points(
+    roster_settings: dict[str, Any],
+    roster_payload: dict[str, Any],
+    points_key: str,
+    decimal_key: str,
+) -> float:
+    """
+    Build a float from Sleeper roster points and decimal fields.
+    """
+    points_value = roster_settings.get(points_key, roster_payload.get(points_key, 0))
+    decimal_value = roster_settings.get(decimal_key, roster_payload.get(decimal_key, 0))
+
+    points_float = 0.0
+    try:
+        points_float = float(points_value)
+    except (TypeError, ValueError):
+        points_float = 0.0
+
+    decimal_float = 0.0
+    try:
+        decimal_float = float(decimal_value) / 100.0
+    except (TypeError, ValueError):
+        decimal_float = 0.0
+
+    return round(points_float + decimal_float, 2)
 
 def sync_players(client: DataClient) -> int:
     """
@@ -142,12 +169,35 @@ def sync_league(client: DataClient, league_id: str) -> None:
             owner_id = r.get("owner_id") or r.get("user_id") or r.get("owner")
             players = r.get("players") or []
             starters = r.get("starters") or []
+            roster_settings = r.get("settings") or {}
 
             starters_set = set(starters)
             bench = [p for p in players if p not in starters_set]
 
             starters_json = json.dumps(starters)
             bench_json = json.dumps(bench)
+
+            wins = roster_settings.get("wins", r.get("wins", 0))
+            losses = roster_settings.get("losses", r.get("losses", 0))
+            ties = roster_settings.get("ties", r.get("ties", 0))
+            waiver_position = roster_settings.get(
+                "waiver_position",
+                r.get("waiver_position"),
+            )
+            total_moves = roster_settings.get("total_moves", r.get("total_moves", 0))
+
+            fpts = _extract_roster_points(
+                roster_settings,
+                r,
+                "fpts",
+                "fpts_decimal",
+            )
+            fpts_against = _extract_roster_points(
+                roster_settings,
+                r,
+                "fpts_against",
+                "fpts_against_decimal",
+            )
 
             upsert_roster(
                 conn,
@@ -156,6 +206,13 @@ def sync_league(client: DataClient, league_id: str) -> None:
                 owner_id,
                 starters_json,
                 bench_json,
+                wins,
+                losses,
+                ties,
+                waiver_position,
+                total_moves,
+                fpts,
+                fpts_against,
             )
 
     LOG.info("Finished syncing league %s", league_id)
@@ -361,6 +418,15 @@ def sync_weekly_projections(client: DataClient, season: int, week: int) -> int:
                 value=float(points),
                 source="sportsdataio",
             )
+            upsert_dst_weekly_points(
+                conn,
+                season=season,
+                week=week,
+                dst_team=team_upper,
+                projected_points=float(points),
+                actual_points=None,
+                source="sportsdataio",
+            )
             count += 1
 
     LOG.info("Upserted %d projection stat rows", count)
@@ -447,10 +513,10 @@ def sync_weekly_actuals(client: DataClient, season: int, week: int, league_id: s
         rows = []
 
     try:
-        dst_rows = client.get_weekly_defensive_stats(season, week) or []
+        dst_fantasy_rows = client.get_weekly_defense_fantasy_by_game(season, week) or []
     except RuntimeError as exc:
-        LOG.warning("Skipping DST actuals (defense stats endpoint failed): %s", exc)
-        dst_rows = []
+        LOG.warning("Skipping DST fantasy points (by game endpoint failed): %s", exc)
+        dst_fantasy_rows = []
 
     def _normalize_name(name: str) -> str:
         return re.sub(r"[^a-z0-9]+", "", (name or "").lower())
@@ -512,56 +578,12 @@ def sync_weekly_actuals(client: DataClient, season: int, week: int, league_id: s
 
         return candidates[0]["player_id"] if candidates else None
 
-    def _load_scoring_settings(conn, league_id: str) -> dict[str, float]:
-        rows = conn.execute(
-            """
-            SELECT stat_key, weight
-            FROM scoring_settings
-            WHERE league_id = ?
-            """,
-            (league_id,),
-        ).fetchall()
-        return {row["stat_key"]: float(row["weight"]) for row in rows}
-
-    def _load_dst_tiers(conn, league_id: str) -> dict[str, list[dict[str, float | None]]]:
-        rows = conn.execute(
-            """
-            SELECT metric, min_incl, max_incl, points
-            FROM dst_tiers
-            WHERE league_id = ?
-            ORDER BY min_incl ASC
-            """,
-            (league_id,),
-        ).fetchall()
-        tiers: dict[str, list[dict[str, float | None]]] = {}
-        for row in rows:
-            tiers.setdefault(row["metric"], []).append(
-                {
-                    "min_incl": row["min_incl"],
-                    "max_incl": row["max_incl"],
-                    "points": float(row["points"]),
-                }
-            )
-        return tiers
-
-    def _tier_points(tiers, metric: str, value: float | None) -> float:
-        if value is None:
-            return 0.0
-        for tier in tiers.get(metric, []):
-            min_incl = tier["min_incl"]
-            max_incl = tier["max_incl"]
-            if value >= min_incl and (max_incl is None or value <= max_incl):
-                return float(tier["points"])
-        return 0.0
-
     count = 0
     player_index, dst_index = _build_player_index()
 
     with get_conn() as conn:
         _ensure_player_week_meta_actual_points(conn)
         league_id = league_id or settings.SLEEPER_LEAGUE_ID
-        scoring_weights = _load_scoring_settings(conn, league_id) if league_id else {}
-        dst_tiers = _load_dst_tiers(conn, league_id) if league_id else {}
 
         for row in rows:
             points = row.get("FantasyPointsPPR")
@@ -594,54 +616,24 @@ def sync_weekly_actuals(client: DataClient, season: int, week: int, league_id: s
             )
             count += 1
 
-        defense_stat_map = {
-            "Sacks": "dst_sack",
-            "Interceptions": "dst_int",
-            "FumblesRecovered": "dst_fum_rec",
-            "DefensiveTouchdowns": "dst_td",
-            "Safeties": "dst_safety",
-            "BlockedKicks": "dst_blk_kick",
-            "PointsAllowed": "dst_pa",
-            "YardsAllowed": "dst_ya",
-        }
-
-        for row in dst_rows:
-            team = row.get("Team") or row.get("TeamAbbr")
+        for row in dst_fantasy_rows:
+            team = row.get("Team") or row.get("TeamAbbr") or row.get("DefenseTeam")
             if not team:
                 continue
+
+            fantasy_points = row.get("FantasyPoints")
+            if fantasy_points is None:
+                continue
+
             team_upper = team.upper()
-            player_id = dst_index.get(team_upper)
-            if not player_id:
-                player_id = f"DST-{team_upper}"
-                upsert_player(conn, player_id, f"{team_upper} DST", team_upper, "DST", "active")
-
-            linear = 0.0
-            dst_pa = None
-            dst_ya = None
-            for sd_key, stat_key in defense_stat_map.items():
-                if sd_key not in row:
-                    continue
-                value = row.get(sd_key)
-                if value is None:
-                    continue
-                if stat_key == "dst_pa":
-                    dst_pa = float(value)
-                if stat_key == "dst_ya":
-                    dst_ya = float(value)
-                linear += float(value) * float(scoring_weights.get(stat_key, 0.0))
-
-            total = linear
-            total += _tier_points(dst_tiers, "points_allowed", dst_pa)
-            total += _tier_points(dst_tiers, "yards_allowed", dst_ya)
-
-            upsert_player_week_meta(
+            upsert_dst_weekly_points(
                 conn,
-                player_id=player_id,
                 season=season,
                 week=week,
-                opp_team=None,
-                is_home=None,
-                actual_points=float(total),
+                dst_team=team_upper,
+                projected_points=None,
+                actual_points=float(fantasy_points),
+                source="sportsdataio",
             )
             count += 1
 

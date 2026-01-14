@@ -220,7 +220,21 @@ def upsert_user(conn, user_id, display_name, avatar, team_name, metadata_json) -
         (user_id, display_name, avatar, team_name, metadata_json)
     )
 
-def upsert_roster(conn, league_id, roster_id, owner_id, starters_json, bench_json) -> None:
+def upsert_roster(
+    conn,
+    league_id,
+    roster_id,
+    owner_id,
+    starters_json,
+    bench_json,
+    wins,
+    losses,
+    ties,
+    waiver_position,
+    total_moves,
+    fpts,
+    fpts_against,
+) -> None:
     """
     Insert or update a roster record in the database.
 
@@ -243,15 +257,48 @@ def upsert_roster(conn, league_id, roster_id, owner_id, starters_json, bench_jso
 
     conn.execute(
         """
-        INSERT INTO rosters (league_id, roster_id, owner_id, starters_json, bench_json)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO rosters (
+            league_id,
+            roster_id,
+            owner_id,
+            starters_json,
+            bench_json,
+            wins,
+            losses,
+            ties,
+            waiver_position,
+            total_moves,
+            fpts,
+            fpts_against
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(league_id, roster_id)
         DO UPDATE SET
             owner_id = excluded.owner_id,
             starters_json = excluded.starters_json,
-            bench_json = excluded.bench_json;
+            bench_json = excluded.bench_json,
+            wins = excluded.wins,
+            losses = excluded.losses,
+            ties = excluded.ties,
+            waiver_position = excluded.waiver_position,
+            total_moves = excluded.total_moves,
+            fpts = excluded.fpts,
+            fpts_against = excluded.fpts_against;
         """,
-        (league_id, roster_id, owner_id, starters_json, bench_json),
+        (
+            league_id,
+            roster_id,
+            owner_id,
+            starters_json,
+            bench_json,
+            wins,
+            losses,
+            ties,
+            waiver_position,
+            total_moves,
+            fpts,
+            fpts_against,
+        ),
     )
     
 def upsert_player(conn, player_id, player_name, team, position, status) -> None:
@@ -374,34 +421,6 @@ def upsert_scoring_settings(conn, league_id, stat_key, weight) -> None:
             (league_id, stat_key, weight)
         )
 
-def upsert_dst_tier(conn, league_id, metric, min_incl, max_incl, points) -> None:
-        """
-        Insert or update a DST tier record for a league.
-
-        Args:
-            conn: Database connection object.
-            league_id (int): The ID of the league.
-            metric (str): Metric name used for the tier (e.g., 'sacks', 'turnovers').
-            min_incl (float): Minimum inclusive threshold for the metric.
-            max_incl (float): Maximum inclusive threshold for the metric.
-            points (float): Points awarded for DSTs falling within the tier.
-
-        Returns:
-            None
-        """
-        conn.execute(
-            """
-            INSERT INTO dst_tier(league_id, metric, min_incl, max_incl, points)
-            VALUES(?, ?, ?, ?, ?)
-            ON CONFLICT(league_id, metric, min_incl, max_incl)
-            DO UPDATE SET
-                points = excluded.points,
-                updated_at = CURRENT_TIMESTAMP;
-            """,
-            (league_id, metric, min_incl, max_incl, points)
-        )
-
-
 def upsert_projection_adjustment(conn, league_id, position, multiplier, bonus) -> None:
     conn.execute(
         """
@@ -413,6 +432,43 @@ def upsert_projection_adjustment(conn, league_id, position, multiplier, bonus) -
             bonus = excluded.bonus;
         """,
         (league_id, position, multiplier, bonus),
+    )
+
+
+def upsert_dst_weekly_points(
+    conn,
+    season: int,
+    week: int,
+    dst_team: str,
+    projected_points: float | None,
+    actual_points: float | None,
+    source: str = "sportsdataio",
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO dst (
+            season,
+            week,
+            dst_team,
+            projected_points,
+            actual_points,
+            source
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(season, week, dst_team, source)
+        DO UPDATE SET
+            projected_points = COALESCE(excluded.projected_points, dst.projected_points),
+            actual_points = COALESCE(excluded.actual_points, dst.actual_points),
+            generated_at = CURRENT_TIMESTAMP;
+        """,
+        (
+            season,
+            week,
+            dst_team,
+            projected_points,
+            actual_points,
+            source,
+        ),
     )
     
 

@@ -20,6 +20,13 @@ class RosterUpsertItem(BaseModel):
     owner_id: Optional[str] = None
     starters_json: Optional[str] = None
     bench_json: Optional[str] = None
+    wins: Optional[int] = None
+    losses: Optional[int] = None
+    ties: Optional[int] = None
+    waiver_position: Optional[int] = None
+    total_moves: Optional[int] = None
+    fpts: Optional[float] = None
+    fpts_against: Optional[float] = None
 
 
 class RosterUpsertRequest(BaseModel):
@@ -36,6 +43,13 @@ class Roster(BaseModel):
     owner_id: Optional[str] = None
     starters_json: Optional[str] = None
     bench_json: Optional[str] = None
+    wins: Optional[int] = None
+    losses: Optional[int] = None
+    ties: Optional[int] = None
+    waiver_position: Optional[int] = None
+    total_moves: Optional[int] = None
+    fpts: Optional[float] = None
+    fpts_against: Optional[float] = None
 
 
 router = APIRouter(prefix="/rosters", tags=["rosters"])
@@ -63,4 +77,3 @@ def get_roster_by_owner(username: str = Query(..., min_length=1)):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-

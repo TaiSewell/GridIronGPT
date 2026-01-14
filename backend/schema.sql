@@ -7,7 +7,7 @@
    - Core: leagues, rosters, players, matchups, meta
    - Weekly context: player_week_meta (opp + home/away)
    - Projections (EAV): player_weekly_proj_stats
-   - League scoring: scoring_settings (+ dst_tiers)
+   - League scoring: scoring_settings
    - Views: player projections, DST projections, DST ranks
 =============================================================
 */
@@ -48,6 +48,13 @@ CREATE TABLE IF NOT EXISTS rosters (
   owner_id TEXT,
   starters_json TEXT,
   bench_json TEXT,
+  wins INTEGER DEFAULT 0,
+  losses INTEGER DEFAULT 0,
+  ties INTEGER DEFAULT 0,
+  waiver_position INTEGER,
+  total_moves INTEGER DEFAULT 0,
+  fpts REAL DEFAULT 0,
+  fpts_against REAL DEFAULT 0,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (league_id, roster_id),
   FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE
@@ -84,8 +91,23 @@ CREATE TABLE IF NOT EXISTS player_week_meta (
 );
 CREATE INDEX IF NOT EXISTS idx_pwm_season_week ON player_week_meta(season, week);
 
+/**********************************
+   DST Weekly Points
+**********************************/
+CREATE TABLE IF NOT EXISTS dst (
+  season        INTEGER NOT NULL,
+  week          INTEGER NOT NULL CHECK (week BETWEEN 1 AND 18),
+  dst_team      TEXT NOT NULL,
+  projected_points REAL,
+  actual_points REAL,
+  source        TEXT NOT NULL DEFAULT 'sportsdataio',
+  generated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (season, week, dst_team, source)
+);
+CREATE INDEX IF NOT EXISTS idx_dst_sw ON dst(season, week);
+
 /**************************
-   Matchups (optional cache)
+  Matchups (optional cache)
 **************************/
 CREATE TABLE IF NOT EXISTS matchups (
   league_id TEXT NOT NULL,
@@ -136,19 +158,6 @@ CREATE TABLE IF NOT EXISTS player_weekly_proj_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_proj_swp ON player_weekly_proj_stats(season, week, player_id);
 CREATE INDEX IF NOT EXISTS idx_proj_swk ON player_weekly_proj_stats(season, week, stat_key);
-
-/****************************************
-  DST Tier Ranges (Sleeper-style buckets)
-****************************************/
-CREATE TABLE IF NOT EXISTS dst_tiers (
-  league_id  TEXT NOT NULL,
-  metric     TEXT NOT NULL CHECK (metric IN ('points_allowed','yards_allowed')),
-  min_incl   INTEGER NOT NULL,                -- inclusive lower bound
-  max_incl   INTEGER,                         -- inclusive upper (NULL=open-ended)
-  points     REAL NOT NULL,                   -- tier bonus/penalty
-  PRIMARY KEY (league_id, metric, min_incl, max_incl),
-  FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE
-);
 
 /**************************************
   Projection Adjustments (by position)
@@ -213,79 +222,20 @@ LEFT JOIN player_week_meta AS pwm
  AND pwm.season    = v.season
  AND pwm.week      = v.week;
 /******************************************
-  View: Projected DST Points (linear + tiers)
+  View: Season DST Actual Ranks
 ******************************************/
-CREATE VIEW IF NOT EXISTS v_dst_weekly_proj_points AS
-WITH base AS (
-  SELECT
-    pws.season,
-    pws.week,
-    pws.player_id,
-    p.team AS dst_team,
-    ss.league_id,
-    SUM(pws.value * ss.weight) AS linear_points
-  FROM player_weekly_proj_stats pws
-  JOIN players p           ON p.player_id = pws.player_id AND p.position = 'DST'
-  JOIN scoring_settings ss ON ss.stat_key = pws.stat_key
-  GROUP BY pws.season, pws.week, pws.player_id, ss.league_id
-),
-pa AS (
-  SELECT
-    season, week, player_id,
-    MAX(CASE WHEN stat_key = 'dst_pa' THEN value END) AS dst_pa,
-    MAX(CASE WHEN stat_key = 'dst_ya' THEN value END) AS dst_ya
-  FROM player_weekly_proj_stats
-  GROUP BY season, week, player_id
-)
-SELECT
-  b.season,
-  b.week,
-  b.player_id,
-  b.dst_team,
-  b.league_id,
-  ROUND(
-    b.linear_points
-    + COALESCE((
-        SELECT dt.points
-        FROM dst_tiers dt
-        WHERE dt.league_id = b.league_id
-          AND dt.metric = 'points_allowed'
-          AND pa.dst_pa IS NOT NULL
-          AND pa.dst_pa >= dt.min_incl
-          AND (dt.max_incl IS NULL OR pa.dst_pa <= dt.max_incl)
-        LIMIT 1
-      ), 0)
-    + COALESCE((
-        SELECT dt.points
-        FROM dst_tiers dt
-        WHERE dt.league_id = b.league_id
-          AND dt.metric = 'yards_allowed'
-          AND pa.dst_ya IS NOT NULL
-          AND pa.dst_ya >= dt.min_incl
-          AND (dt.max_incl IS NULL OR pa.dst_ya <= dt.max_incl)
-        LIMIT 1
-      ), 0)
-  , 2) AS projected_points
-FROM base b
-LEFT JOIN pa
-  ON pa.season = b.season AND pa.week = b.week AND pa.player_id = b.player_id;
-
-/******************************************
-  View: Weekly DST Ranks (per league)
-******************************************/
-CREATE VIEW IF NOT EXISTS v_dst_weekly_proj_rank AS
+CREATE VIEW IF NOT EXISTS v_dst_season_actual_rank AS
 SELECT
   season,
-  week,
-  league_id,
-  player_id,
+  ROW_NUMBER() OVER (
+    PARTITION BY season
+    ORDER BY SUM(actual_points) DESC
+  ) AS dst_rank,
   dst_team,
-  projected_points,
-  RANK() OVER (
-    PARTITION BY season, week, league_id
-    ORDER BY projected_points DESC
-  ) AS dst_rank
-FROM v_dst_weekly_proj_points;
+  ROUND(SUM(actual_points), 2) AS total_points
+FROM dst
+WHERE actual_points IS NOT NULL
+GROUP BY season, dst_team;
 
 /**************************
    Meta (key/value cache)

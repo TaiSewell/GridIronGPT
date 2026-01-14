@@ -9,13 +9,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.app.ai.roster_compare import compare_rosters_service
 from backend.app.ai.start_sit import build_start_sit_recommendations_service
+from backend.app.ai.fantasy_leaders import build_fantasy_leaders_service
+from backend.app.ai.league_summary import build_league_summary_service
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -49,6 +51,34 @@ class StartSitResponse(BaseModel):
     start_sit: Dict[str, Any]
 
 
+class FantasyLeadersRequest(BaseModel):
+    limit: int = Field(default=10, ge=1, le=100)
+    season: Optional[int] = None
+    week: Optional[int] = Field(default=None, ge=1, le=18)
+
+
+class FantasyLeadersResponse(BaseModel):
+    season: int
+    week: int
+    limit: int
+    summary: str
+    details: str
+    leaders: List[Dict[str, Any]]
+
+
+class LeagueSummaryRequest(BaseModel):
+    season: Optional[int] = None
+    week: Optional[int] = Field(default=None, ge=1, le=18)
+
+
+class LeagueSummaryResponse(BaseModel):
+    season: int
+    week: int
+    summary: str
+    details: str
+    rosters: List[Dict[str, Any]]
+
+
 @router.post("/compare-rosters", response_model=CompareRostersResponse)
 def compare_rosters(request: CompareRostersRequest):
     try:
@@ -72,6 +102,33 @@ def start_sit(request: StartSitRequest):
             user_a=request.user_a,
             week=request.week,
             season=request.season,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/fantasy-leaders", response_model=FantasyLeadersResponse)
+def fantasy_leaders(request: FantasyLeadersRequest):
+    try:
+        return build_fantasy_leaders_service(
+            limit=request.limit,
+            season=request.season,
+            week=request.week,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/league-summary", response_model=LeagueSummaryResponse)
+def league_summary(request: LeagueSummaryRequest):
+    try:
+        return build_league_summary_service(
+            season=request.season,
+            week=request.week,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
