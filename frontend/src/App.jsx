@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
+import logo from "./images/GridIronGPT_Logo.png";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000')
 
@@ -404,7 +405,7 @@ export default function App() {
           </div>
           <img
             className="welcome-logo"
-            src="../assets/GridIronGPT_Logo.png"
+            src={logo}
             alt="GridironGPT logo"
           />
           <div className="hero-status">

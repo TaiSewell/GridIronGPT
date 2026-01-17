@@ -124,12 +124,27 @@
 
   .welcome-logo {
     position: absolute;
-    top: 18px;
+    top: 2px;
     right: 20px;
-    width: 140px;
-    max-width: 35%;
+    width: 55%;
+    max-width: 500px;
     height: auto;
     filter: drop-shadow(0 0 12px rgba(46, 229, 255, 0.4));
+  }
+
+  @media (max-width: 768px) {
+    .welcome-logo {
+      width: 50%;
+      max-width: 350px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .welcome-logo {
+      width: 25%;
+      max-width: 250px;
+      right: 12px;
+    }
   }
 
   .hero-title h1 {
