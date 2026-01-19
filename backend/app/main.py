@@ -15,7 +15,7 @@ import sqlite3
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
-from backend.app.routers import advice, health, players, rosters, dst, users
+from backend.app.routers import advice, health, players, rosters, dst, users, admin
 
 logger = logging.getLogger(__name__)
 
@@ -36,4 +36,5 @@ app.include_router(players.router)
 app.include_router(dst.router)
 app.include_router(rosters.router)
 app.include_router(users.router)
+app.include_router(admin.router)
 

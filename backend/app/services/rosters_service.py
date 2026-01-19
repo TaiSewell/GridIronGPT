@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from backend.app.config import settings
+from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.roster_queries as q_rosters
@@ -19,9 +19,7 @@ import backend.queries.user_queries as q_users
 
 
 def _get_league_id() -> str:
-    league_id = settings.SLEEPER_LEAGUE_ID
-    if not league_id:
-        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
+    league_id = get_active_league_id()
     return league_id
 
 

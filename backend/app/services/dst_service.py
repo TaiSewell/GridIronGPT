@@ -13,7 +13,7 @@ from backend.db import get_conn
 import backend.queries.dst_queries as q_dst
 import backend.queries.league_queries as q_league
 from backend.cache_manager import CacheManager
-from backend.app.config import settings
+from backend.app.services.league_context import get_active_league_id
 
 
 def list_dst_weekly_points_service(
@@ -23,9 +23,7 @@ def list_dst_weekly_points_service(
     limit: int = 32,
     offset: int = 0,
 ):
-    league_id = settings.SLEEPER_LEAGUE_ID
-    if not league_id:
-        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
+    league_id = get_active_league_id()
 
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
@@ -56,9 +54,7 @@ def list_dst_season_actual_ranks_service(
     limit: int = 32,
     offset: int = 0,
 ):
-    league_id = settings.SLEEPER_LEAGUE_ID
-    if not league_id:
-        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
+    league_id = get_active_league_id()
 
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)

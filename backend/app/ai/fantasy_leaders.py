@@ -11,11 +11,29 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from backend.app.config import settings
+from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.league_queries as q_league
 import backend.queries.player_queries as q_player
+
+def _resolve_latest_completed_week(client, season: int) -> Optional[int]:
+    latest_week: Optional[int] = None
+    for week in range(1, 19):
+        schedule = client.get_schedule(season, week) or []
+        has_final = False
+        for game in schedule:
+            status = str(game.get("Status") or "").lower()
+            if status.startswith("final") or status in {"f", "fo", "f/ot"}:
+                has_final = True
+                break
+
+        if has_final:
+            latest_week = week
+        elif latest_week is not None:
+            break
+
+    return latest_week
 
 
 def build_fantasy_leaders_service(
@@ -26,9 +44,7 @@ def build_fantasy_leaders_service(
     """
     Build a leaderboard of fantasy scorers based on actual points.
     """
-    league_id = settings.SLEEPER_LEAGUE_ID
-    if not league_id:
-        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
+    league_id = get_active_league_id()
 
     cache_manager = CacheManager(league_id=league_id)
     cache_manager.ensure_players_cached()
@@ -43,15 +59,18 @@ def build_fantasy_leaders_service(
 
     resolved_week = week
     if resolved_week is None:
-        with get_conn() as conn:
-            resolved_week = q_player.get_latest_week_with_actual_points(
-                conn=conn,
-                season=resolved_season,
-            )
+        resolved_week = _resolve_latest_completed_week(cache_manager.client, resolved_season)
 
     if resolved_week:
         for current_week in range(1, resolved_week + 1):
             cache_manager.ensure_weekly_actuals_cached(resolved_season, current_week)
+        with get_conn() as conn:
+            latest_with_points = q_player.get_latest_week_with_actual_points(
+                conn=conn,
+                season=resolved_season,
+            )
+        if latest_with_points:
+            resolved_week = latest_with_points
 
     leaders: List[Dict[str, Any]] = []
     if resolved_week:

@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.config import settings
+from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.league_queries as q_league
@@ -29,9 +29,7 @@ def build_league_summary_service(
     """
     Build a league-wide summary using roster season totals.
     """
-    league_id = settings.SLEEPER_LEAGUE_ID
-    if not league_id:
-        raise ValueError("SLEEPER_LEAGUE_ID is required in the environment.")
+    league_id = get_active_league_id()
 
     cache_manager = CacheManager(league_id=league_id)
     cache_manager.ensure_league_bundle_cached(week=None)

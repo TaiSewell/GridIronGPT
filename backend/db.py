@@ -14,6 +14,9 @@ import sqlite3
 from pathlib import Path
 from contextlib import contextmanager
 from typing import Any, Iterable, List, Dict, Optional, Mapping
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DB_PATH = os.getenv("DB_PATH", "./data/gridiron.db")
 SCHEMA_PATH = os.getenv("SCHEMA_PATH", "./backend/schema.sql")

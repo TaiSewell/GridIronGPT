@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './App.css'
 import logo from "./images/GridIronGPT_Logo.png";
 
@@ -9,9 +10,9 @@ const STARTER_HINTS = [
   'compare Tai versus JDOse week 12 include bench',
   'compare my team vs Etac week 9',
   'who should I start this week 7',
+  'give me insights on my roster',
   'give me the top 10 players this year',
   'give me your thoughts overall on the league this year',
-  
 ]
 
 const LOCAL_TEAM_KEY = 'gridiron.myTeam'
@@ -26,7 +27,7 @@ function loadStoredTeam() {
         result = parsed
       }
     }
-  } catch (err) {
+  } catch {
     result = null
   }
   return result
@@ -37,7 +38,7 @@ function storeTeamSelection(team) {
   try {
     localStorage.setItem(LOCAL_TEAM_KEY, JSON.stringify(team))
     success = true
-  } catch (err) {
+  } catch {
     success = false
   }
   return success
@@ -65,9 +66,9 @@ function parseFantasyLeadersPrompt(input) {
     const limitValue = Number(limitMatch[1])
     result.intent = true
     if (!limitValue || Number.isNaN(limitValue)) {
-      result.error = 'Add a number, e.g. "give me the top 10 players this year".'
+      result.error = 'Missing number. Try: `give me the top 10 players this year`.'
     } else if (limitValue < 1 || limitValue > 100) {
-      result.error = 'Pick a limit between 1 and 100.'
+      result.error = 'Number out of range. Try: `give me the top 10 players this year`.'
     } else {
       result.limit = limitValue
     }
@@ -98,13 +99,16 @@ function parseComparePrompt(input) {
 
   const compareMatch = text.match(/compare\s+(.+?)\s+(?:vs|versus|and)\s+(.+?)(?:\s+week|\s*$)/i)
   if (!compareMatch || !week) {
-    return { error: 'Try "compare Alice vs Bob week 7".' }
+    if (!week) {
+      return { error: 'Missing week. Try: `compare Alice vs Bob week 7`.' }
+    }
+    return { error: 'Missing roster names. Try: `compare Alice vs Bob week 7`.' }
   }
 
   const userA = compareMatch[1].trim()
   const userB = compareMatch[2].trim()
   if (!userA || !userB) {
-    return { error: 'I need two roster names to compare.' }
+    return { error: 'Missing roster names. Try: `compare Alice vs Bob week 7`.' }
   }
 
   return { userA, userB, week, includeBench }
@@ -121,10 +125,11 @@ function parseStartSitPrompt(input) {
     const userA = userMatch ? userMatch[1].trim() : ''
 
     result.intent = true
+    result.week = week
     if (!week) {
-      result.error = 'Add a week, e.g. "who should I start for jdose week 7".'
+      result.error = 'Missing week. Try: `who should I start week 7`.'
     } else if (!userA) {
-      result.error = 'Add a roster name, e.g. "who should I start for jdose week 7".'
+      result.useMyTeam = true
     } else {
       result.userA = userA
       result.week = week
@@ -133,12 +138,35 @@ function parseStartSitPrompt(input) {
   return result
 }
 
+function parseRosterInsightsPrompt(input) {
+  const text = input.trim()
+  const result = { intent: false }
+  const isInsights = /(roster\s+insights|insights\s+on\s+my\s+roster|insights\s+on\s+roster|team\s+insights|roster\s+breakdown|my\s+roster\s+insights)/i.test(text)
+  if (isInsights) {
+    const userMatch = text.match(/for\s+(.+?)(?:\s+week|\s*$)/i)
+    const userA = userMatch ? userMatch[1].trim() : ''
+    const useMyTeam = /\bmy\s+roster\b|\bmy\s+team\b/i.test(text)
+
+    result.intent = true
+    if (userA) {
+      result.userA = userA
+    } else if (useMyTeam) {
+      result.useMyTeam = true
+    } else {
+      result.error = 'Missing roster name. Try: `give me insights on my roster`.'
+    }
+  }
+  return result
+}
+
 export default function App() {
-  const [health, setHealth] = useState(null)
+  const navigate = useNavigate()
   const [healthError, setHealthError] = useState(null)
   const [myTeam, setMyTeam] = useState(() => loadStoredTeam())
   const [teamOptions, setTeamOptions] = useState([])
   const [pendingInput, setPendingInput] = useState('')
+  const [adminLeagueId, setAdminLeagueId] = useState('')
+  const [adminStatus, setAdminStatus] = useState('')
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -148,12 +176,9 @@ export default function App() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const apiLabel = useMemo(() => API_BASE.replace(/^https?:\/\//, ''), [])
-
   useEffect(() => {
     fetch(`${API_BASE}/health`)
-      .then(r => r.json())
-      .then(setHealth)
+      .then(() => {})
       .catch(err => setHealthError(String(err)))
   }, [])
 
@@ -199,6 +224,46 @@ export default function App() {
       ])
     }
     return options
+  }
+
+  async function handleLeagueSwitch(event) {
+    event.preventDefault()
+    const trimmedLeagueId = adminLeagueId.trim()
+    if (!trimmedLeagueId) {
+      setAdminStatus('Missing league id. Try: `1266923357840871424`.')
+      return
+    }
+
+    const confirmSwitch = window.confirm(
+      `Switch active league to ${trimmedLeagueId}? This will refresh league data.`
+    )
+    if (!confirmSwitch) {
+      setAdminStatus('League switch canceled.')
+      return
+    }
+
+    setAdminStatus('Switching league and syncing...')
+    try {
+      const response = await fetch(`${API_BASE}/admin/league`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ league_id: trimmedLeagueId })
+      })
+
+      if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(errText || 'Request failed')
+      }
+
+      localStorage.removeItem(LOCAL_TEAM_KEY)
+      setMyTeam(null)
+      setTeamOptions([])
+      const options = await fetchTeamOptions()
+      setTeamOptions(options)
+      setAdminStatus(`Active league switched to ${trimmedLeagueId}.`)
+    } catch (err) {
+      setAdminStatus(`Error: ${err.message || String(err)}`)
+    }
   }
 
   function handleTeamSelect(team) {
@@ -261,7 +326,7 @@ export default function App() {
     if (leagueParsed.intent && fantasyParsed.intent) {
       setMessages(prev => [
         ...prev,
-        { role: 'system', content: 'Try either league summary or top players, not both.' }
+        { role: 'system', content: 'Too many requests. Try: `give me the top 10 players this year`.' }
       ])
       return
     }
@@ -302,15 +367,43 @@ export default function App() {
       return
     }
 
+    const rosterInsightsParsed = fantasyParsed.intent
+      ? { intent: false }
+      : parseRosterInsightsPrompt(inputText)
+    if (rosterInsightsParsed.intent && rosterInsightsParsed.useMyTeam) {
+      if (myTeam?.displayName) {
+        rosterInsightsParsed.userA = myTeam.displayName
+      } else {
+        setMessages(prev => [
+          ...prev,
+          { role: 'system', content: 'Missing roster name. Try: `give me insights on my roster`.' }
+        ])
+        return
+      }
+    } else if (rosterInsightsParsed.intent && rosterInsightsParsed.error) {
+      setMessages(prev => [...prev, { role: 'system', content: rosterInsightsParsed.error }])
+      return
+    }
+
     const startSitParsed = fantasyParsed.intent
       ? { intent: false }
       : parseStartSitPrompt(inputText)
-    if (startSitParsed.intent && startSitParsed.error) {
+    if (startSitParsed.intent && startSitParsed.useMyTeam) {
+      if (myTeam?.displayName) {
+        startSitParsed.userA = myTeam.displayName
+      } else {
+        setMessages(prev => [
+          ...prev,
+          { role: 'system', content: 'Missing roster name. Try: `who should I start week 7`.' }
+        ])
+        return
+      }
+    } else if (startSitParsed.intent && startSitParsed.error) {
       setMessages(prev => [...prev, { role: 'system', content: startSitParsed.error }])
       return
     }
 
-    const parsed = fantasyParsed.intent || startSitParsed.intent
+    const parsed = fantasyParsed.intent || startSitParsed.intent || rosterInsightsParsed.intent
       ? null
       : parseComparePrompt(inputText)
     if (parsed?.error) {
@@ -322,7 +415,11 @@ export default function App() {
       ? {
           limit: fantasyParsed.limit
         }
-      : startSitParsed.intent
+      : rosterInsightsParsed.intent
+        ? {
+            user_a: rosterInsightsParsed.userA
+          }
+        : startSitParsed.intent
         ? {
             user_a: startSitParsed.userA,
             week: startSitParsed.week
@@ -338,7 +435,9 @@ export default function App() {
     try {
       const endpoint = fantasyParsed.intent
         ? 'fantasy-leaders'
-        : startSitParsed.intent
+        : rosterInsightsParsed.intent
+          ? 'roster-insights'
+          : startSitParsed.intent
           ? 'start-sit'
           : 'compare-rosters'
       const response = await fetch(`${API_BASE}/ai/${endpoint}`, {
@@ -355,6 +454,8 @@ export default function App() {
       const data = await response.json()
       let formatted = ''
       if (fantasyParsed.intent) {
+        formatted = [data.summary, data.details].filter(Boolean).join('\n\n')
+      } else if (rosterInsightsParsed.intent) {
         formatted = [data.summary, data.details].filter(Boolean).join('\n\n')
       } else if (startSitParsed.intent) {
         formatted = [data.recommendation, data.reasoning].filter(Boolean).join('\n\n')
@@ -398,24 +499,38 @@ export default function App() {
         <header className="hero welcome-hero">
           <div className="hero-title">
             <p className="hero-kicker">GridironGPT</p>
-            <h1>Welcome to GridironGPT</h1>
+            <h1>Roster Selection</h1>
             <p className="hero-subtitle">
               Select your team to personalize your league insights and unlock your chat.
             </p>
+            <button type="button" className="home-button" onClick={() => navigate('/')}>
+              Home
+            </button>
           </div>
           <img
             className="welcome-logo"
             src={logo}
             alt="GridironGPT logo"
           />
-          <div className="hero-status">
-            <span className={`pill ${health ? 'pill-online' : 'pill-offline'}`}>
-              {health ? 'API online' : 'API offline'}
-            </span>
-            <span className="pill pill-quiet">{apiLabel}</span>
-          </div>
           {healthError && <p className="hero-error">Health check failed: {healthError}</p>}
         </header>
+
+        <section className="admin-panel">
+          <div className="admin-header">
+            <h2>League ID</h2>
+            <p>Switch the active league id and refresh data.</p>
+          </div>
+          <form className="admin-form" onSubmit={handleLeagueSwitch}>
+            <input
+              type="text"
+              value={adminLeagueId}
+              onChange={event => setAdminLeagueId(event.target.value)}
+              placeholder="Enter league id"
+            />
+            <button type="submit">Switch league</button>
+          </form>
+          {adminStatus && <p className="admin-status">{adminStatus}</p>}
+        </section>
 
         <section className="team-pick">
           <div className="team-pick-header">
@@ -456,12 +571,6 @@ export default function App() {
             Type a matchup request, we will call your AI service layer and return a clear edge.
           </p>
         </div>
-        <div className="hero-status">
-          <span className={`pill ${health ? 'pill-online' : 'pill-offline'}`}>
-            {health ? 'API online' : 'API offline'}
-          </span>
-          <span className="pill pill-quiet">{apiLabel}</span>
-        </div>
         {healthError && <p className="hero-error">Health check failed: {healthError}</p>}
       </header>
 
@@ -488,7 +597,7 @@ export default function App() {
           {isLoading && (
             <div className="chat-message assistant loading">
               <span className="chat-role">assistant</span>
-              <p>Crunching projections and lineup edges...</p>
+              <p>Crunching projections and lineup edges</p>
             </div>
           )}
         </div>
@@ -498,7 +607,7 @@ export default function App() {
             type="text"
             value={input}
             onChange={event => setInput(event.target.value)}
-            placeholder="compare Alice vs Bob week 7"
+            placeholder="compare user1 vs user2 week 7"
           />
           <button type="submit" disabled={isLoading}>
             Compare

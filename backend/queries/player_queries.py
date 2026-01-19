@@ -262,3 +262,31 @@ def get_player_week_actuals(
 
     results = [dict(row) for row in rows]
     return results
+
+
+def get_players_by_ids(
+    conn,
+    player_ids: List[str],
+) -> List[Dict[str, Any]]:
+    """
+    Fetch player metadata for a list of player ids.
+    """
+    results: List[Dict[str, Any]] = []
+    if player_ids:
+        placeholders = ",".join("?" for _ in player_ids)
+        rows = conn.execute(
+            f"""
+            SELECT
+                player_id,
+                player_name,
+                team,
+                position,
+                status
+            FROM players
+            WHERE player_id IN ({placeholders})
+            """,
+            tuple(player_ids),
+        ).fetchall()
+
+        results = [dict(row) for row in rows]
+    return results
