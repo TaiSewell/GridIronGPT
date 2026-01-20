@@ -290,7 +290,7 @@ export default function App() {
   function handleTeamReset() {
     try {
       localStorage.removeItem(LOCAL_TEAM_KEY)
-    } catch (err) {
+    } catch {
       // Ignore storage errors
     }
     setMyTeam(null)
