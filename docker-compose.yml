@@ -3,22 +3,26 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:                                                                                                  
-      - ./data/gridiron.db:/app/data/gridiron.db
+    volumes:                                                                       
+      - ./data:/app/data
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app:/app/backend
-      - DB_PATH=/app/data/gridiron.db
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    ports:
-      - "5173:5173"
     environment:
-      - VITE_API_BASE=http://localhost:8000
+      - VITE_API_BASE=/api
     depends_on:
+      - backend
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.local.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
       - backend
