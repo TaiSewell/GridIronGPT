@@ -1,7 +1,5 @@
 # GridironGPT — AI Fantasy Football Assistant
 
-**Status:** In Development
-
 **GridironGPT** is an AI-powered fantasy football assistant that combines real **statistical data**, **Sleeper API league syncing**, and **OpenAI** formatting to generate clear, conversational fantasy insights.
 
 The backend fetches league, roster, player, and matchup data from the Sleeper API & SportsDataIO API, caches it locally in **SQLite**, and exposes it through a lightweight **FastAPI** service.
@@ -209,3 +207,4 @@ Performance metrics by roster slot
 Developed by Tai Sewell
 
 “Where stats meet strategy.”
+
