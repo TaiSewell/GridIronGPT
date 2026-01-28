@@ -5,57 +5,6 @@
 The backend fetches league, roster, player, and matchup data from the Sleeper API & SportsDataIO API, caches it locally in **SQLite**, and exposes it through a lightweight **FastAPI** service.
 The frontend (React + Tailwind) will provide an interactive chat interface powered by the OpenAI Mini Model for natural, easy-to-read analysis.
 
-## 🚀 Core Features (Current & In-Progress)
-### ✔️ Local Sleeper Data Caching (Phase 1)
-
-Pulls league, roster, matchup, and player data from the Sleeper API
-
-Stores all data locally in SQLite using a clean schema
-
-Uses a meta table for:
-
-active league tracking
-
-last sync timestamps (TTLs)
-
-Supports fast reads and offline-friendly performance
-
-### ✔️ Flexible DB Layer
-
-Custom db.py built with:
-
-WAL mode
-
-foreign key enforcement
-
-reusable query helpers (fetch_all, fetch_one, execute, executemany)
-
-metadata persistence
-
-Prepped for future projections + analytics
-
-### 🔜 AI Layer (Phase 3)
-
-Backend computes raw insights
-
-OpenAI Mini model reformats results into:
-
-start/sit advice
-
-matchup breakdowns
-
-weekly ranking explanations
-
-### 🔜 Smart Chat UI (Phase 4)
-
-React UI optimized for:
-
-quick queries
-
-matchup lookups
-
-weekly roster decisions
-
 ---
 
 ## 🧠 Tech Stack
@@ -207,4 +156,5 @@ Performance metrics by roster slot
 Developed by Tai Sewell
 
 “Where stats meet strategy.”
+
 
