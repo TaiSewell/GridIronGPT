@@ -8,10 +8,11 @@
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.app.services import rosters_service as rsvc
+from backend.app.routers.deps import get_request_league_id
 
 
 class RosterUpsertItem(BaseModel):
@@ -55,9 +56,9 @@ class Roster(BaseModel):
 router = APIRouter(prefix="/rosters", tags=["rosters"])
 
 @router.get("/league", response_model=List[Roster])
-def list_rosters():
+def list_rosters(league_id: str = Depends(get_request_league_id)):
     try:
-        return rsvc.list_rosters_service()
+        return rsvc.list_rosters_service(league_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -65,9 +66,12 @@ def list_rosters():
 
 
 @router.get("/owner", response_model=Roster)
-def get_roster_by_owner(username: str = Query(..., min_length=1)):
+def get_roster_by_owner(
+    username: str = Query(..., min_length=1),
+    league_id: str = Depends(get_request_league_id),
+):
     try:
-        roster = rsvc.get_roster_by_owner_service(username=username)
+        roster = rsvc.get_roster_by_owner_service(username=username, league_id=league_id)
         if not roster:
             raise HTTPException(status_code=404, detail="Roster not found")
         return roster

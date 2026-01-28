@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.league_queries as q_league
@@ -24,14 +23,13 @@ import backend.queries.user_queries as q_users
 
 def build_roster_insights_service(
     user_a: str,
+    league_id: str,
     season: Optional[int] = None,
     week: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Build roster insights for a single roster owner.
     """
-    league_id = get_active_league_id()
-
     cache_manager = CacheManager(league_id=league_id)
     cache_manager.ensure_league_bundle_cached(week=None)
 

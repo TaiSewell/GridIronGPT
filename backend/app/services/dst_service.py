@@ -13,18 +13,16 @@ from backend.db import get_conn
 import backend.queries.dst_queries as q_dst
 import backend.queries.league_queries as q_league
 from backend.cache_manager import CacheManager
-from backend.app.services.league_context import get_active_league_id
 
 
 def list_dst_weekly_points_service(
     week: int,
+    league_id: str,
     season: Optional[int] = None,
     team: Optional[str] = None,
     limit: int = 32,
     offset: int = 0,
 ):
-    league_id = get_active_league_id()
-
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
     cache.ensure_players_cached()
@@ -50,12 +48,11 @@ def list_dst_weekly_points_service(
 
 
 def list_dst_season_actual_ranks_service(
+    league_id: str,
     season: Optional[int] = None,
     limit: int = 32,
     offset: int = 0,
 ):
-    league_id = get_active_league_id()
-
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
 

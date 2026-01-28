@@ -8,10 +8,11 @@
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.app.services import users_service as usvc
+from backend.app.routers.deps import get_request_league_id
 
 
 class User(BaseModel):
@@ -26,9 +27,9 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("", response_model=List[User])
-def list_users():
+def list_users(league_id: str = Depends(get_request_league_id)):
     try:
-        return usvc.list_users_service()
+        return usvc.list_users_service(league_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -39,6 +40,7 @@ def list_users():
 def lookup_user(
     user_id: Optional[str] = Query(None),
     name: Optional[str] = Query(None),
+    league_id: str = Depends(get_request_league_id),
 ):
     if bool(user_id) == bool(name):
         raise HTTPException(
@@ -48,12 +50,12 @@ def lookup_user(
 
     try:
         if user_id:
-            user = usvc.get_user_by_id_service(user_id)
+            user = usvc.get_user_by_id_service(user_id, league_id)
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
             return [user]
 
-        return usvc.search_users_by_name_service(name or "")
+        return usvc.search_users_by_name_service(name or "", league_id)
     except HTTPException:
         raise
     except ValueError as exc:

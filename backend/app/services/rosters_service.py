@@ -11,21 +11,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.roster_queries as q_rosters
 import backend.queries.user_queries as q_users
 
-
-def _get_league_id() -> str:
-    league_id = get_active_league_id()
-    return league_id
-
-
-def list_rosters_service() -> list[dict]:
-    league_id = _get_league_id()
-
+def list_rosters_service(league_id: str) -> list[dict]:
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
 
@@ -33,9 +24,7 @@ def list_rosters_service() -> list[dict]:
         return q_rosters.list_rosters_by_league(conn, league_id)
 
 
-def get_roster_by_owner_service(username: str) -> Optional[dict]:
-    league_id = _get_league_id()
-
+def get_roster_by_owner_service(username: str, league_id: str) -> Optional[dict]:
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
 

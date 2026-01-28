@@ -14,19 +14,17 @@ from typing import Any, Dict, Optional
 
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
-from backend.app.services.league_context import set_active_league_id
 import backend.queries.league_queries as q_league
 
 
 def switch_active_league_service(league_id: str) -> Dict[str, Any]:
     """
-    Persist a new active league id and refresh league data.
+    Sync league data for the requested league id.
     """
     cleaned_league_id = league_id.strip()
     if not cleaned_league_id:
         raise ValueError("league_id cannot be empty.")
 
-    set_active_league_id(cleaned_league_id)
     cache_manager = CacheManager(league_id=cleaned_league_id)
     cache_manager.ensure_players_cached(force_refresh=True)
     cache_manager.ensure_league_bundle_cached(week=None, force_refresh=True)

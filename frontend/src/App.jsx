@@ -16,6 +16,7 @@ const STARTER_HINTS = [
 ]
 
 const LOCAL_TEAM_KEY = 'gridiron.myTeam'
+const LOCAL_LEAGUE_KEY = 'gridiron.leagueId'
 
 function loadStoredTeam() {
   let result = null
@@ -37,6 +38,33 @@ function storeTeamSelection(team) {
   let success = false
   try {
     localStorage.setItem(LOCAL_TEAM_KEY, JSON.stringify(team))
+    success = true
+  } catch {
+    success = false
+  }
+  return success
+}
+
+function loadStoredLeagueId() {
+  let result = null
+  try {
+    const raw = localStorage.getItem(LOCAL_LEAGUE_KEY)
+    if (raw) {
+      const trimmed = raw.trim()
+      if (trimmed) {
+        result = trimmed
+      }
+    }
+  } catch {
+    result = null
+  }
+  return result
+}
+
+function storeLeagueId(leagueId) {
+  let success = false
+  try {
+    localStorage.setItem(LOCAL_LEAGUE_KEY, leagueId)
     success = true
   } catch {
     success = false
@@ -163,6 +191,7 @@ export default function App() {
   const navigate = useNavigate()
   const [healthError, setHealthError] = useState(null)
   const [myTeam, setMyTeam] = useState(() => loadStoredTeam())
+  const [activeLeagueId, setActiveLeagueId] = useState(() => loadStoredLeagueId())
   const [teamOptions, setTeamOptions] = useState([])
   const [pendingInput, setPendingInput] = useState('')
   const [adminLeagueId, setAdminLeagueId] = useState('')
@@ -188,12 +217,24 @@ export default function App() {
     }
   }, [myTeam, teamOptions.length])
 
-  async function fetchTeamOptions() {
+  function buildApiHeaders(includeJson, leagueIdOverride) {
+    const resolvedLeagueId = leagueIdOverride || activeLeagueId
+    const headers = {}
+    if (includeJson) {
+      headers['Content-Type'] = 'application/json'
+    }
+    if (resolvedLeagueId) {
+      headers['X-League-Id'] = resolvedLeagueId
+    }
+    return headers
+  }
+
+  async function fetchTeamOptions(leagueIdOverride) {
     let options = []
     try {
       const [rostersResponse, usersResponse] = await Promise.all([
-        fetch(`${API_BASE}/rosters/league`),
-        fetch(`${API_BASE}/users`)
+        fetch(`${API_BASE}/rosters/league`, { headers: buildApiHeaders(false, leagueIdOverride) }),
+        fetch(`${API_BASE}/users`, { headers: buildApiHeaders(false, leagueIdOverride) })
       ])
 
       if (!rostersResponse.ok || !usersResponse.ok) {
@@ -246,7 +287,7 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE}/admin/league`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildApiHeaders(true),
         body: JSON.stringify({ league_id: trimmedLeagueId })
       })
 
@@ -255,12 +296,15 @@ export default function App() {
         throw new Error(errText || 'Request failed')
       }
 
+      const storedLeague = storeLeagueId(trimmedLeagueId)
+      setActiveLeagueId(trimmedLeagueId)
       localStorage.removeItem(LOCAL_TEAM_KEY)
       setMyTeam(null)
       setTeamOptions([])
-      const options = await fetchTeamOptions()
+      const options = await fetchTeamOptions(trimmedLeagueId)
       setTeamOptions(options)
-      setAdminStatus(`Active league switched to ${trimmedLeagueId}.`)
+      const storageNote = storedLeague ? '' : ' (not saved to browser)'
+      setAdminStatus(`Active league switched to ${trimmedLeagueId}${storageNote}.`)
     } catch (err) {
       setAdminStatus(`Error: ${err.message || String(err)}`)
     }
@@ -336,7 +380,7 @@ export default function App() {
       try {
         const response = await fetch(`${API_BASE}/ai/league-summary`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: buildApiHeaders(true),
           body: JSON.stringify({})
         })
 
@@ -442,7 +486,7 @@ export default function App() {
           : 'compare-rosters'
       const response = await fetch(`${API_BASE}/ai/${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildApiHeaders(true),
         body: JSON.stringify(payload)
       })
 

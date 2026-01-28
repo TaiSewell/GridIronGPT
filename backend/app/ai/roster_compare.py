@@ -23,11 +23,12 @@ def compare_rosters_service(
     user_a: str,
     user_b: str,
     week: int,
+    league_id: str,
     season: Optional[int] = None,
     include_bench: bool = False,
 ) -> Dict[str, Any]:
-    roster_a = rosters_service.get_roster_by_owner_service(user_a)
-    roster_b = rosters_service.get_roster_by_owner_service(user_b)
+    roster_a = rosters_service.get_roster_by_owner_service(user_a, league_id)
+    roster_b = rosters_service.get_roster_by_owner_service(user_b, league_id)
 
     if not roster_a or not roster_b:
         missing = user_a if not roster_a else user_b
@@ -40,6 +41,7 @@ def compare_rosters_service(
     projections = player_service.get_player_weekly_projections_by_ids_service(
         player_ids=player_ids,
         week=week,
+        league_id=league_id,
         season=season,
     )
     projection_map = {p["player_id"]: p for p in projections}

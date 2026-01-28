@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.app.ai.roster_compare import compare_rosters_service
@@ -19,6 +19,7 @@ from backend.app.ai.start_sit import build_start_sit_recommendations_service
 from backend.app.ai.fantasy_leaders import build_fantasy_leaders_service
 from backend.app.ai.league_summary import build_league_summary_service
 from backend.app.ai.roster_insights import build_roster_insights_service
+from backend.app.routers.deps import get_request_league_id
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -96,12 +97,16 @@ class RosterInsightsResponse(BaseModel):
 
 
 @router.post("/compare-rosters", response_model=CompareRostersResponse)
-def compare_rosters(request: CompareRostersRequest):
+def compare_rosters(
+    request: CompareRostersRequest,
+    league_id: str = Depends(get_request_league_id),
+):
     try:
         return compare_rosters_service(
             user_a=request.user_a,
             user_b=request.user_b,
             week=request.week,
+            league_id=league_id,
             season=request.season,
             include_bench=request.include_bench,
         )
@@ -112,11 +117,15 @@ def compare_rosters(request: CompareRostersRequest):
 
 
 @router.post("/start-sit", response_model=StartSitResponse)
-def start_sit(request: StartSitRequest):
+def start_sit(
+    request: StartSitRequest,
+    league_id: str = Depends(get_request_league_id),
+):
     try:
         return build_start_sit_recommendations_service(
             user_a=request.user_a,
             week=request.week,
+            league_id=league_id,
             season=request.season,
         )
     except ValueError as exc:
@@ -126,10 +135,14 @@ def start_sit(request: StartSitRequest):
 
 
 @router.post("/fantasy-leaders", response_model=FantasyLeadersResponse)
-def fantasy_leaders(request: FantasyLeadersRequest):
+def fantasy_leaders(
+    request: FantasyLeadersRequest,
+    league_id: str = Depends(get_request_league_id),
+):
     try:
         return build_fantasy_leaders_service(
             limit=request.limit,
+            league_id=league_id,
             season=request.season,
             week=request.week,
         )
@@ -140,9 +153,13 @@ def fantasy_leaders(request: FantasyLeadersRequest):
 
 
 @router.post("/league-summary", response_model=LeagueSummaryResponse)
-def league_summary(request: LeagueSummaryRequest):
+def league_summary(
+    request: LeagueSummaryRequest,
+    league_id: str = Depends(get_request_league_id),
+):
     try:
         return build_league_summary_service(
+            league_id=league_id,
             season=request.season,
             week=request.week,
         )
@@ -153,10 +170,14 @@ def league_summary(request: LeagueSummaryRequest):
 
 
 @router.post("/roster-insights", response_model=RosterInsightsResponse)
-def roster_insights(request: RosterInsightsRequest):
+def roster_insights(
+    request: RosterInsightsRequest,
+    league_id: str = Depends(get_request_league_id),
+):
     try:
         return build_roster_insights_service(
             user_a=request.user_a,
+            league_id=league_id,
             season=request.season,
             week=request.week,
         )

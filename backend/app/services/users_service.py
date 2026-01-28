@@ -12,19 +12,12 @@ from __future__ import annotations
 from typing import List, Optional
 import json
 
-from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.user_queries as q_users
 
 
-def _get_league_id() -> str:
-    league_id = get_active_league_id()
-    return league_id
-
-
-def list_users_service() -> List[dict]:
-    league_id = _get_league_id()
+def list_users_service(league_id: str) -> List[dict]:
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
 
@@ -34,8 +27,7 @@ def list_users_service() -> List[dict]:
     return [_hydrate_team_name(u) for u in users]
 
 
-def get_user_by_id_service(user_id: str) -> Optional[dict]:
-    league_id = _get_league_id()
+def get_user_by_id_service(user_id: str, league_id: str) -> Optional[dict]:
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
 
@@ -45,8 +37,7 @@ def get_user_by_id_service(user_id: str) -> Optional[dict]:
     return _hydrate_team_name(user) if user else None
 
 
-def search_users_by_name_service(name: str) -> List[dict]:
-    league_id = _get_league_id()
+def search_users_by_name_service(name: str, league_id: str) -> List[dict]:
     cache = CacheManager(league_id=league_id)
     cache.ensure_league_bundle_cached(week=None)
 

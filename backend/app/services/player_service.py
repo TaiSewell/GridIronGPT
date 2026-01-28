@@ -18,26 +18,26 @@ from backend.db import get_conn
 import backend.queries.player_queries as q_player
 import backend.queries.league_queries as q_league
 from backend.cache_manager import CacheManager
-from backend.app.services.league_context import get_active_league_id
 
 def search_player_by_name_service(
     player_name: str,
+    league_id: str,
     limit: Optional[int] = None,
 ):
     limit = limit or 25
 
-    cache = CacheManager(league_id=get_active_league_id())
+    cache = CacheManager(league_id=league_id)
     cache.ensure_players_cached()
 
     with get_conn() as conn:
         return q_player.search_players_by_name(conn, player_name, limit)
 
 
-def get_player_by_id_service(player_id: str):
+def get_player_by_id_service(player_id: str, league_id: str):
     """
     Fetch a single player by Sleeper player_id (TEXT).
     """
-    cache = CacheManager(league_id=get_active_league_id())
+    cache = CacheManager(league_id=league_id)
     cache.ensure_players_cached()
 
     with get_conn() as conn:
@@ -47,11 +47,10 @@ def get_player_by_id_service(player_id: str):
 def search_player_projections_service(
     name: str,
     week: int,
+    league_id: str,
     limit: int = 25,
     season: Optional[int] = None,
 ):
-    league_id = get_active_league_id()
-
     # IMPORTANT: cache must be per-league (don't use a global CacheManager here)
     cache = CacheManager(league_id=league_id)
 
@@ -88,8 +87,8 @@ def search_player_projections_service(
             limit=limit,
         )
     
-def list_players_service(limit: int = 200, offset: int = 0):
-    cache = CacheManager(league_id=get_active_league_id())
+def list_players_service(league_id: str, limit: int = 200, offset: int = 0):
+    cache = CacheManager(league_id=league_id)
     cache.ensure_players_cached()
     with get_conn() as conn:
         return q_player.get_players(conn, limit, offset)
@@ -98,10 +97,9 @@ def list_players_service(limit: int = 200, offset: int = 0):
 def get_player_with_weekly_projection_service(
     player_id: str,
     week: int,
+    league_id: str,
     season: Optional[int] = None,
 ):
-    league_id = get_active_league_id()
-
     # IMPORTANT: cache must be per-league (don't use a global CacheManager here)
     cache = CacheManager(league_id=league_id)
 
@@ -141,10 +139,9 @@ def get_player_with_weekly_projection_service(
 def get_player_weekly_projections_by_ids_service(
     player_ids: list[str],
     week: int,
+    league_id: str,
     season: Optional[int] = None,
 ):
-    league_id = get_active_league_id()
-
     cache = CacheManager(league_id=league_id)
 
     cache.ensure_league_bundle_cached(week=None)

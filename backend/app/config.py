@@ -18,9 +18,10 @@ class Settings(BaseSettings):
     _base_dir = Path(__file__).resolve().parent  # backend/app
     _env_root = _base_dir.parent.parent / ".env"
     _env_backend = _base_dir.parent / ".env"
+    _env_root_custom = _base_dir.parent.parent / "my.env"
 
     model_config = SettingsConfigDict(
-        env_file=[str(_env_root), str(_env_backend)],
+        env_file=[str(_env_root), str(_env_backend), str(_env_root_custom)],
         env_file_encoding="utf-8",
         extra="ignore",
     )

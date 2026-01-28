@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from backend.app.services.league_context import get_active_league_id
 from backend.cache_manager import CacheManager
 from backend.db import get_conn
 import backend.queries.league_queries as q_league
@@ -38,14 +37,13 @@ def _resolve_latest_completed_week(client, season: int) -> Optional[int]:
 
 def build_fantasy_leaders_service(
     limit: int,
+    league_id: str,
     season: Optional[int] = None,
     week: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Build a leaderboard of fantasy scorers based on actual points.
     """
-    league_id = get_active_league_id()
-
     cache_manager = CacheManager(league_id=league_id)
     cache_manager.ensure_players_cached()
 

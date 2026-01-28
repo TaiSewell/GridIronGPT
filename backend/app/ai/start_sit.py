@@ -19,12 +19,13 @@ from backend.app.services import player_service, rosters_service
 def build_start_sit_recommendations_service(
     user_a: str,
     week: int,
+    league_id: str,
     season: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Build start/sit recommendations for a single roster.
     """
-    roster = rosters_service.get_roster_by_owner_service(user_a)
+    roster = rosters_service.get_roster_by_owner_service(user_a, league_id)
     if not roster:
         raise ValueError(f"Roster not found for '{user_a}'.")
 
@@ -32,6 +33,7 @@ def build_start_sit_recommendations_service(
     projections = player_service.get_player_weekly_projections_by_ids_service(
         player_ids=roster_players,
         week=week,
+        league_id=league_id,
         season=season,
     )
     projection_map = {p["player_id"]: p for p in projections}
