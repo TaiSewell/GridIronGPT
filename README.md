@@ -1,211 +1,165 @@
-# GridironGPT — AI Fantasy Football Assistant
+# GridironGPT
 
-**Status:** In Development
+Status: In development
 
-**GridironGPT** is an AI-powered fantasy football assistant that combines real **statistical data**, **Sleeper API league syncing**, and **OpenAI** formatting to generate clear, conversational fantasy insights.
+GridironGPT is an AI-powered fantasy football assistant. It syncs Sleeper league data and SportsDataIO projections into a local SQLite cache, exposes clean FastAPI endpoints, and formats insights through an AI layer. A React + Vite frontend provides the chat-style UI.
 
-The backend fetches league, roster, player, and matchup data from the Sleeper API & SportsDataIO API, caches it locally in **SQLite**, and exposes it through a lightweight **FastAPI** service.
-The frontend (React + Tailwind) will provide an interactive chat interface powered by the OpenAI Mini Model for natural, easy-to-read analysis.
+## Features
+- Sleeper league sync (league, users, rosters, matchups, players)
+- SportsDataIO projections and weekly actuals support
+- SQLite cache with reusable query helpers and WAL mode
+- FastAPI API with dedicated routers for players, rosters, users, DST, and AI insights
+- CLI sync tools for players, leagues, matchups, projections, and actuals
+- React + Vite frontend with Tailwind
 
-## 🚀 Core Features (Current & In-Progress)
-### ✔️ Local Sleeper Data Caching (Phase 1)
+## Tech stack
+- Backend: Python, FastAPI, Uvicorn
+- Frontend: React, Vite, Tailwind
+- Storage: SQLite
+- External APIs: Sleeper, SportsDataIO
+- AI: OpenAI API (optional, configured via env)
 
-Pulls league, roster, matchup, and player data from the Sleeper API
-
-Stores all data locally in SQLite using a clean schema
-
-Uses a meta table for:
-
-active league tracking
-
-last sync timestamps (TTLs)
-
-Supports fast reads and offline-friendly performance
-
-### ✔️ Flexible DB Layer
-
-Custom db.py built with:
-
-WAL mode
-
-foreign key enforcement
-
-reusable query helpers (fetch_all, fetch_one, execute, executemany)
-
-metadata persistence
-
-Prepped for future projections + analytics
-
-### 🔜 AI Layer (Phase 3)
-
-Backend computes raw insights
-
-OpenAI Mini model reformats results into:
-
-start/sit advice
-
-matchup breakdowns
-
-weekly ranking explanations
-
-### 🔜 Smart Chat UI (Phase 4)
-
-React UI optimized for:
-
-quick queries
-
-matchup lookups
-
-weekly roster decisions
-
----
-
-## 🧠 Tech Stack
-| **Layer**      | **Technology**            | **Purpose**                                      |
-|----------------|---------------------------|--------------------------------------------------|
-| Frontend       | React + Vite + Tailwind   | Chat interface + user input                      |
-| Backend        | FastAPI (Python)          | Syncs data, exposes endpoints, AI formatting     |
-| Database       | SQLite                    | Local cache of Sleeper API data                  |
-| External API   | Sleeper API               | Provides league, roster, matchup & player info   |
-| AI             | OpenAI Mini Model         | Conversational formatting of backend output      |
-
----
-
-## 🗂️ Project Structure
+## 🗂 Project Structure
 ```
 GridironGPT/
+├── assets/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
+│   │   ├── ai/
 │   │   ├── routers/
+│   │   │   ├── admin.py
+│   │   │   ├── advice.py
+│   │   │   ├── deps.py
+│   │   │   ├── dst.py
+│   │   │   ├── health.py
+│   │   │   ├── players.py
+│   │   │   ├── rosters.py
+│   │   │   └── users.py
 │   │   ├── services/
-│   │   └── models/
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── data/
-│   ├── schema.py
-│   ├── gridiron_db.py
+│   │   ├── utils/
+│   │   ├── config.py
+│   │   └── main.py
+│   ├── queries/
+│   ├── tests/
+│   ├── cache_manager.py
 │   ├── data_client.py
 │   ├── db.py
-│   ├── sync.py
-│   └── cache_manager.py
-│
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── schema.sql
+│   └── sync.py
+├── data/
 ├── frontend/
 │   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── App.jsx
+│   └── src/
+│       ├── assets/
+│       ├── images/
+│       ├── App.css
+│       ├── App.jsx
+│       ├── HomePage.jsx
+│       ├── index.css
+│       └── main.jsx
 │   ├── Dockerfile
 │   ├── package.json
 │   └── vite.config.js
-│
-├── tests/
-│   └── db_tests/
-│
-├── assets/
+├── nginx/
+├── scripts/
 ├── .env
 ├── .env.example
-├── docker-compose.yml
 ├── .gitignore
+├── AGENTS.md
+├── docker-compose.yml
 └── README.md
 ```
----
 
-## ⚙️ Installation
+## Getting started
 
-### 1️⃣ Clone the Repository
-```bash
-git clone https://github.com/taisewell/GridironGPT.git
-cd GridironGPT
+### Prerequisites
+- Python 3.x
+- Node.js + npm
+
+### Environment variables
+Copy `.env.example` to `.env` at the repo root and fill in values.
+
+Example:
 ```
-### 2️⃣ Backend Setup (FastAPI)
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+# Backend
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+ALLOWED_ORIGINS=http://localhost:5173
+
+# Data
+DB_PATH=./data/gridiron.db
+SLEEPER_BASE=https://api.sleeper.app/v1
+SLEEPER_LEAGUE_ID=YOUR_LEAGUE_ID
+SPORTS_DATA_KEY=YOUR_SPORTS_DATA_KEY
+SPORTS_DATA_BASE=https://api.sportsdata.io/v3/nfl
+
+# AI (optional)
+OPENAI_API_KEY=sk-...
 ```
-### 3️⃣ Frontend Setup (React)
-```bash
+
+### Backend (FastAPI)
+```
+python -m venv .venv
+. .venv/Scripts/activate
+pip install -r backend/requirements.txt
+uvicorn backend.app.main:app --reload
+```
+
+### Frontend (React)
+```
 cd frontend
 npm install
 npm run dev
 ```
 
-### 🔑 Environment Variables
-Create a .env file inside backend/:
-```bash
-OPENAI_API_KEY=your_api_key_here
-DB_PATH=./data/gridiron.db
-SLEEPER_LEAGUE_ID=your_default_league_id   # optional
+## Data sync CLI
+The sync script lives at `backend/sync.py`.
+
+Examples:
+```
+python backend/sync.py players
+python backend/sync.py league YOUR_LEAGUE_ID
+python backend/sync.py matchups YOUR_LEAGUE_ID 1
+python backend/sync.py week-meta 2024 1
+python backend/sync.py week-actuals 2024 1
+python backend/sync.py inspect --league YOUR_LEAGUE_ID
 ```
 
-## 🗺️ Roadmap
-Phase 0 – Setup ✔️
-Repo initialized
+## API quick reference
+- `GET /` Welcome message
+- `GET /health` Health check
+- `GET /players` List players
+- `GET /players/search` Search players
+- `GET /players/{player_id}` Player detail
+- `GET /players/{player_id}/projection` Player weekly projection
+- `GET /players/search/projection` Search projections by name
+- `GET /rosters/league` League rosters
+- `GET /rosters/owner` Roster by owner name
+- `GET /users` League users
+- `GET /users/lookup` User lookup
+- `GET /dst/weekly` Weekly DST projections/actuals
+- `GET /dst/season-ranks` Season DST ranks
+- `POST /ai/compare-rosters`
+- `POST /ai/start-sit`
+- `POST /ai/fantasy-leaders`
+- `POST /ai/league-summary`
+- `POST /ai/roster-insights`
+- `POST /admin/league` Switch active league
 
-Project structure created
+## Docker
+Build and run the full stack (backend, frontend, nginx):
+```
+docker compose up --build
+```
 
-Requirements + environment configured
+## Tests
+```
+pytest
+```
 
-Phase 1 – Data Layer (Current)
-✔️ SQLite schema
-
-✔️ db.py data access layer
-
-⏳ Sleeper client
-
-⏳ Sync pipeline (players, rosters, matchups)
-
-Phase 2 – Backend Logic
-Compute matchup advantages
-
-Weekly player ranking logic
-
-Start/Sit comparison processing
-
-Phase 3 – AI Integration
-Format backend outputs using OpenAI Mini
-
-Efficient prompt generation
-
-Chat-style conversational formatting
-
-Phase 4 – React Chat Interface
-Chat panel
-
-Query input
-
-Response formatting
-
-Display synced roster + matchups
-
-Phase 5 – Deployment
-Vercel for frontend
-
-Render / AWS for backend
-
-Phase 6 – Polish
-UI design improvements
-
-Animations
-
-Documentation cleanup
-
-🔮 Future Enhancements
-User-selectable Sleeper league
-
-Multi-league caching
-
-Live injury & projection data
-
-Player comparison charts
-
-Weekly fantasy projections
-
-Performance metrics by roster slot
-
-Developed by Tai Sewell
-
-“Where stats meet strategy.”
+## Notes
+- The backend reads env files from the repo root and `backend/.env`.
+- SQLite data is stored under `data/` by default.
+```
