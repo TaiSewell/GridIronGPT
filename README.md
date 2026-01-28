@@ -21,41 +21,53 @@ The frontend (React + Tailwind) will provide an interactive chat interface power
 ## 🗂️ Project Structure
 ```
 GridironGPT/
+├── assets/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
+│   │   ├── ai/
 │   │   ├── routers/
+│   │   │   ├── admin.py
+│   │   │   ├── advice.py
+│   │   │   ├── deps.py
+│   │   │   ├── dst.py
+│   │   │   ├── health.py
+│   │   │   ├── players.py
+│   │   │   ├── rosters.py
+│   │   │   └── users.py
 │   │   ├── services/
-│   │   └── models/
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── data/
-│   ├── schema.py
-│   ├── gridiron_db.py
+│   │   ├── utils/
+│   │   ├── config.py
+│   │   └── main.py
+│   ├── queries/
+│   ├── tests/
+│   ├── cache_manager.py
 │   ├── data_client.py
 │   ├── db.py
-│   ├── sync.py
-│   └── cache_manager.py
-│
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── schema.sql
+│   └── sync.py
+├── data/
 ├── frontend/
 │   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── App.jsx
+│   └── src/
+│       ├── assets/
+│       ├── images/
+│       ├── App.css
+│       ├── App.jsx
+│       ├── HomePage.jsx
+│       ├── index.css
+│       └── main.jsx
 │   ├── Dockerfile
 │   ├── package.json
 │   └── vite.config.js
-│
-├── tests/
-│   └── db_tests/
-│
-├── assets/
+├── nginx/
+├── scripts/
 ├── .env
 ├── .env.example
-├── docker-compose.yml
 ├── .gitignore
+├── AGENTS.md
+├── docker-compose.yml
 └── README.md
 ```
 ---
@@ -85,77 +97,12 @@ Create a .env file inside backend/:
 ```bash
 OPENAI_API_KEY=your_api_key_here
 DB_PATH=./data/gridiron.db
-SLEEPER_LEAGUE_ID=your_default_league_id   # optional
 ```
-
-## 🗺️ Roadmap
-Phase 0 – Setup ✔️
-Repo initialized
-
-Project structure created
-
-Requirements + environment configured
-
-Phase 1 – Data Layer (Current)
-✔️ SQLite schema
-
-✔️ db.py data access layer
-
-⏳ Sleeper client
-
-⏳ Sync pipeline (players, rosters, matchups)
-
-Phase 2 – Backend Logic
-Compute matchup advantages
-
-Weekly player ranking logic
-
-Start/Sit comparison processing
-
-Phase 3 – AI Integration
-Format backend outputs using OpenAI Mini
-
-Efficient prompt generation
-
-Chat-style conversational formatting
-
-Phase 4 – React Chat Interface
-Chat panel
-
-Query input
-
-Response formatting
-
-Display synced roster + matchups
-
-Phase 5 – Deployment
-Vercel for frontend
-
-Render / AWS for backend
-
-Phase 6 – Polish
-UI design improvements
-
-Animations
-
-Documentation cleanup
-
-🔮 Future Enhancements
-User-selectable Sleeper league
-
-Multi-league caching
-
-Live injury & projection data
-
-Player comparison charts
-
-Weekly fantasy projections
-
-Performance metrics by roster slot
 
 Developed by Tai Sewell
 
 “Where stats meet strategy.”
+
 
 
 
