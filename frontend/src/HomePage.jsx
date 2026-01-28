@@ -42,7 +42,7 @@ export default function HomePage() {
         />
         <h1>Fantasy Football, Supercharged</h1>
         <p className="hero-subtitle">
-          The neon command center for start/sit decisions, roster edges, and league trends.
+          The Fantasy Football command center for start/sit decisions, roster edges, and league trends.
         </p>
         <button
           type="button"

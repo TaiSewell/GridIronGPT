@@ -517,7 +517,7 @@ export default function App() {
 
         <section className="admin-panel">
           <div className="admin-header">
-            <h2>League ID</h2>
+            <h2>Sleeper League ID</h2>
             <p>Switch the active league id and refresh data.</p>
           </div>
           <form className="admin-form" onSubmit={handleLeagueSwitch}>
@@ -525,7 +525,7 @@ export default function App() {
               type="text"
               value={adminLeagueId}
               onChange={event => setAdminLeagueId(event.target.value)}
-              placeholder="Enter league id"
+              placeholder="Enter Sleeper league id"
             />
             <button type="submit">Switch league</button>
           </form>
@@ -610,7 +610,7 @@ export default function App() {
             placeholder="compare user1 vs user2 week 7"
           />
           <button type="submit" disabled={isLoading}>
-            Compare
+            Ask
           </button>
         </form>
 
