@@ -8,13 +8,13 @@ The frontend (React + Tailwind) will provide an interactive chat interface power
 ---
 
 ## 🧠 Tech Stack
-| **Layer**      | **Technology**            | **Purpose**                                      |
-|----------------|---------------------------|--------------------------------------------------|
-| Frontend       | React + Vite + Tailwind   | Chat interface + user input                      |
-| Backend        | FastAPI (Python)          | Syncs data, exposes endpoints, AI formatting     |
-| Database       | SQLite                    | Local cache of Sleeper API data                  |
-| External API   | Sleeper API               | Provides league, roster, matchup & player info   |
-| AI             | OpenAI Mini Model         | Conversational formatting of backend output      |
+| **Layer**      | **Technology**                | **Purpose**                                      |
+|----------------|-------------------------------|--------------------------------------------------|
+| Frontend       | React + Vite + Tailwind       | Chat interface + user input                      |
+| Backend        | FastAPI (Python)              | Syncs data, exposes endpoints, AI formatting     |
+| Database       | SQLite                        | Local cache of Sleeper API data                  |
+| External API   | Sleeper API, SportsDataIO API | Provides league, roster, matchup & player info   |
+| AI             | OpenAI Mini Model             | Conversational formatting of backend output      |
 
 ---
 
@@ -156,5 +156,6 @@ Performance metrics by roster slot
 Developed by Tai Sewell
 
 “Where stats meet strategy.”
+
 
 
