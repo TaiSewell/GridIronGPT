@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logo from './images/GridIronGPT_Logo.png'
 
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000')
+const API_BASE = import.meta.env.PROD ? "/api" : "http://localhost:8000";
 
 export default function HomePage() {
   const navigate = useNavigate()
